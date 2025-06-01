@@ -9,10 +9,11 @@ abc=123
 完成的任务加个✅在前面(state=done 的)
 
 ## TODO没有内容时，就替换标题
+state=done
 TODO没有内容时， 双击时就插入标题
 
-## 测试没内容的
-state=done
+## 在 TODO 列表里右键完成的任务，在 TODO.md里这条前面加上✅
+
 
 # 优化answer_box.py
 ### Style Sheet 模块

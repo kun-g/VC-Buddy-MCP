@@ -4,9 +4,10 @@ import os
 from pathlib import Path
 from PySide6.QtWidgets import (QApplication, QPushButton, QDialog, QLabel, 
                                QVBoxLayout, QTextEdit, QTreeWidget, QTreeWidgetItem,
-                               QHBoxLayout, QSplitter, QTextBrowser, QCheckBox)
-from PySide6.QtCore import QSettings, Qt
-from PySide6.QtGui import QKeySequence, QShortcut
+                               QHBoxLayout, QSplitter, QTextBrowser, QCheckBox, QMenu, 
+                               QMessageBox, QWidget)
+from PySide6.QtCore import QSettings, Qt, QByteArray
+from PySide6.QtGui import QKeySequence, QShortcut, QAction
 
 # 处理相对导入问题
 try:
@@ -111,32 +112,29 @@ class AnswerBox(QDialog):
         """设置用户界面"""
         self.layout = QVBoxLayout()
         
-        # 摘要显示区域 - 使用QTextBrowser美化显示
-        self.summary_display = QTextBrowser()
-        self.summary_display.setMaximumHeight(100)
+        # 对话框标题
+        summary_text = ""
+        if self.project_directory:
+            folder_name = Path(self.project_directory).name
+            summary_text = f"✅ 项目: {folder_name}"
+            if self.todo_items:
+                summary_text += f" | 📝 TODO任务: {len(self.todo_items)} 项"
+        else:
+            summary_text = "💬 Feedback Dialog"
+        
+        self.summary_display = QLabel(summary_text)
         self.summary_display.setStyleSheet("""
-            QTextBrowser {
-                background-color: #f0f0f0;
-                border: 1px solid #d0d0d0;
-                border-radius: 5px;
-                padding: 8px;
+            QLabel {
+                background-color: #f0f9ff;
+                border: 1px solid #0ea5e9;
+                border-radius: 6px;
+                padding: 8px 12px;
                 font-size: 12px;
+                font-weight: bold;
+                color: #0c4a6e;
+                margin-bottom: 12px;
             }
         """)
-        
-        # 设置摘要内容
-        if self.summary_text:
-            # 将纯文本转换为HTML格式
-            html_content = f"""
-            <div style="color: #333; line-height: 1.4;">
-                <strong style="color: #2c5aa0;">📋 任务摘要:</strong><br>
-                {self.summary_text.replace(chr(10), '<br>')}
-            </div>
-            """
-            self.summary_display.setHtml(html_content)
-        else:
-            self.summary_display.setHtml("<i style='color: #888;'>无任务摘要</i>")
-        
         self.layout.addWidget(self.summary_display)
         
         # 如果有TODO项目，创建分割器布局
@@ -146,6 +144,8 @@ class AnswerBox(QDialog):
             # 左侧：TODO树状视图
             self.todo_tree = QTreeWidget()
             self.todo_tree.setHeaderLabel("📝 TODO 任务")
+            self.todo_tree.setContextMenuPolicy(Qt.CustomContextMenu)
+            self.todo_tree.customContextMenuRequested.connect(self._show_todo_context_menu)
             self.todo_tree.setStyleSheet("""
                 QTreeWidget {
                     border: 1px solid #d0d0d0;
@@ -408,6 +408,74 @@ class AnswerBox(QDialog):
     def closeEvent(self, event):
         self.settings_mgr.save_window_geometry(self)
         return super().closeEvent(event)
+
+    def _show_todo_context_menu(self, position):
+        """显示TODO项目右键菜单"""
+        item = self.todo_tree.itemAt(position)
+        if not item:
+            return
+        
+        todo_item = item.data(0, Qt.UserRole)
+        if not todo_item:
+            return
+        
+        menu = QMenu()
+        
+        # 完成/取消完成动作
+        if todo_item.is_done:
+            mark_undone_action = QAction("❌ 标记为未完成", self)
+            mark_undone_action.triggered.connect(lambda: self._mark_todo_undone(todo_item, item))
+            menu.addAction(mark_undone_action)
+        else:
+            mark_done_action = QAction("✅ 标记为完成", self)
+            mark_done_action.triggered.connect(lambda: self._mark_todo_done(todo_item, item))
+            menu.addAction(mark_done_action)
+        
+        # 显示菜单
+        menu.exec(self.todo_tree.mapToGlobal(position))
+    
+    def _mark_todo_done(self, todo_item: TodoItem, tree_item: QTreeWidgetItem):
+        """标记TODO任务为完成"""
+        todo_item.mark_as_done()
+        self._update_todo_display(tree_item, todo_item)
+        self._save_todos_to_file()
+    
+    def _mark_todo_undone(self, todo_item: TodoItem, tree_item: QTreeWidgetItem):
+        """标记TODO任务为未完成"""
+        todo_item.mark_as_undone()
+        self._update_todo_display(tree_item, todo_item)
+        self._save_todos_to_file()
+    
+    def _update_todo_display(self, tree_item: QTreeWidgetItem, todo_item: TodoItem):
+        """更新TODO项目的显示"""
+        tree_item.setText(0, todo_item.display_title)
+        
+        # 如果当前选中的是这个项目，更新详情显示
+        current_item = self.todo_tree.currentItem()
+        if current_item == tree_item:
+            self._on_todo_item_clicked(tree_item, 0)
+    
+    def _save_todos_to_file(self):
+        """保存TODO列表到文件"""
+        if not self.project_directory or not self.todo_items:
+            return
+        
+        try:
+            # 查找TODO文件
+            parser = TodoParser()
+            todo_file = parser.find_todo_file(self.project_directory)
+            
+            if todo_file:
+                # 保存更新后的TODO列表
+                success = parser.save_todos_to_file(self.todo_items, todo_file)
+                if success:
+                    print(f"✅ TODO列表已保存到: {todo_file}")
+                else:
+                    QMessageBox.warning(self, "保存失败", "无法保存TODO文件，请检查文件权限。")
+            else:
+                QMessageBox.warning(self, "文件未找到", "在项目目录中未找到TODO.md文件。")
+        except Exception as e:
+            QMessageBox.critical(self, "保存错误", f"保存TODO文件时发生错误：{str(e)}")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

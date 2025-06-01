@@ -38,6 +38,39 @@ class TodoItem:
         """设置属性值"""
         self.attributes[key] = value
     
+    def mark_as_done(self):
+        """标记任务为完成"""
+        self.set_attribute("state", "done")
+    
+    def mark_as_undone(self):
+        """标记任务为未完成"""
+        if "state" in self.attributes:
+            del self.attributes["state"]
+    
+    def to_markdown(self) -> str:
+        """转换为markdown格式"""
+        # 标题行
+        header = "#" * self.level + " " + self.title
+        lines = [header]
+        
+        # 属性行
+        for key, value in self.attributes.items():
+            lines.append(f"{key}={value}")
+        
+        # 内容
+        if self.content:
+            if self.attributes:  # 如果有属性，添加空行分隔
+                lines.append("")
+            lines.append(self.content)
+        
+        # 递归添加子项目
+        for child in self.children:
+            lines.append("")  # 在子项目前添加空行
+            child_markdown = child.to_markdown()
+            lines.append(child_markdown)
+        
+        return "\n".join(lines)
+    
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典格式"""
         return {
@@ -55,6 +88,7 @@ class TodoParser:
     
     def __init__(self):
         self.root_items: List[TodoItem] = []
+        self.current_file_path: Optional[str] = None
     
     def parse_file(self, file_path: str) -> List[TodoItem]:
         """解析TODO.md文件"""
@@ -65,10 +99,47 @@ class TodoParser:
         try:
             with open(path, 'r', encoding='utf-8') as f:
                 content = f.read()
+            self.current_file_path = file_path
             return self.parse_content(content)
         except (IOError, UnicodeDecodeError) as e:
             print(f"Warning: Could not read TODO file {file_path}: {e}")
             return []
+    
+    def save_todos_to_file(self, todos: List[TodoItem], file_path: Optional[str] = None) -> bool:
+        """保存TODO列表到文件"""
+        if not file_path:
+            file_path = self.current_file_path
+        
+        if not file_path:
+            print("Error: No file path specified for saving")
+            return False
+        
+        try:
+            # 转换为markdown格式
+            markdown_content = self._todos_to_markdown(todos)
+            
+            # 保存到文件
+            path = Path(file_path)
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(markdown_content)
+            
+            return True
+        except (IOError, UnicodeEncodeError) as e:
+            print(f"Error: Could not save TODO file {file_path}: {e}")
+            return False
+    
+    def _todos_to_markdown(self, todos: List[TodoItem]) -> str:
+        """将TODO列表转换为markdown格式"""
+        lines = []
+        for i, todo in enumerate(todos):
+            todo_markdown = todo.to_markdown()
+            lines.append(todo_markdown)
+            
+            # 在顶级TODO之间添加额外空行（除了最后一个）
+            if i < len(todos) - 1:
+                lines.append("")
+        
+        return "\n".join(lines).rstrip() + "\n"  # 确保文件以换行符结尾
     
     def _parse_attributes(self, lines: List[str]) -> Dict[str, str]:
         """解析属性行，返回属性字典"""
