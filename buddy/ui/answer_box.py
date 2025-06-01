@@ -185,9 +185,6 @@ class AnswerBox(QDialog):
             input_label.setStyleSheet("font-weight: bold; color: #333; margin-bottom: 4px;")
             self.layout.addWidget(input_label)
             
-            # 创建输入区域的水平布局
-            input_container = QHBoxLayout()
-            
             self.input = QTextEdit()
             self.input.setStyleSheet("""
                 QTextEdit {
@@ -200,17 +197,7 @@ class AnswerBox(QDialog):
                     border: 2px solid #2196f3;
                 }
             """)
-            input_container.addWidget(self.input)
-            
-            # 添加语音按钮
-            self.voice_button = VoiceButton()
-            self.voice_button.connect_transcription_ready(self._on_voice_transcription)
-            input_container.addWidget(self.voice_button)
-            
-            # 将水平布局添加到主布局
-            input_widget = QWidget()
-            input_widget.setLayout(input_container)
-            self.layout.addWidget(input_widget)
+            self.layout.addWidget(self.input)
             
             # Commit复选框
             self.commit_checkbox = QCheckBox("📝 Commit - 要求先提交修改的文件")
@@ -238,6 +225,9 @@ class AnswerBox(QDialog):
             """)
             self.layout.addWidget(self.commit_checkbox)
         
+        # 语音按钮和发送按钮的水平布局
+        button_container = QHBoxLayout()
+        
         # 发送按钮
         self.button = QPushButton("📤 Send (Ctrl+Enter)")
         self.button.setStyleSheet("""
@@ -258,7 +248,17 @@ class AnswerBox(QDialog):
             }
         """)
         self.button.clicked.connect(self.respond)
-        self.layout.addWidget(self.button)
+        button_container.addWidget(self.button)
+        
+        # 添加语音按钮（在发送按钮右边）
+        self.voice_button = VoiceButton()
+        self.voice_button.connect_transcription_ready(self._on_voice_transcription)
+        button_container.addWidget(self.voice_button)
+        
+        # 将按钮布局添加到主布局
+        button_widget = QWidget()
+        button_widget.setLayout(button_container)
+        self.layout.addWidget(button_widget)
         
         # 设置 Ctrl+Enter 快捷键
         self.send_shortcut = QShortcut(QKeySequence("Ctrl+Return"), self)
@@ -296,9 +296,6 @@ class AnswerBox(QDialog):
         input_label.setStyleSheet("font-weight: bold; color: #333; margin-top: 8px; margin-bottom: 4px;")
         layout.addWidget(input_label)
         
-        # 创建输入区域的水平布局
-        input_container = QHBoxLayout()
-        
         self.input = QTextEdit()
         self.input.setStyleSheet("""
             QTextEdit {
@@ -311,17 +308,7 @@ class AnswerBox(QDialog):
                 border: 2px solid #2196f3;
             }
         """)
-        input_container.addWidget(self.input)
-        
-        # 添加语音按钮
-        self.voice_button = VoiceButton()
-        self.voice_button.connect_transcription_ready(self._on_voice_transcription)
-        input_container.addWidget(self.voice_button)
-        
-        # 将水平布局添加到主布局
-        input_widget = QWidget()
-        input_widget.setLayout(input_container)
-        layout.addWidget(input_widget)
+        layout.addWidget(self.input)
         
         # Commit复选框
         self.commit_checkbox = QCheckBox("📝 Commit - 要求先提交修改的文件")
