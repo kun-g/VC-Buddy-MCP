@@ -42,8 +42,10 @@ QtObject {
         // TODO 特定颜色
         readonly property color todoBackground: "#FFFFFF"
         readonly property color todoHover: "#F5F5F5"
-        readonly property color todoCompleted: "#E8F5E8"
-        readonly property color todoCompletedBorder: "#4CAF50"
+        readonly property color todoCompleted: "transparent"
+        readonly property color todoCompletedBorder: "#F0F0F0"
+        readonly property color todoSelected: "#E8F5E8"
+        readonly property color todoSelectedBorder: "#4CAF50"
     }
     
     // 字体

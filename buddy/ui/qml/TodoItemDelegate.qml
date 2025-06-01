@@ -10,6 +10,7 @@ Item {
     
     property var todoItem: null
     property int indentLevel: todoItem ? todoItem.level - 1 : 0
+    property bool isSelected: false
     
     signal itemClicked()
     signal itemDoubleClicked()
@@ -122,11 +123,20 @@ Item {
         border.width: 1
         radius: Theme.radius.small
         
-        // 完成状态的背景色
+        // 状态管理
         states: [
             State {
+                name: "selected"
+                when: isSelected
+                PropertyChanges {
+                    target: backgroundRect
+                    color: Theme.colors.todoSelected
+                    border.color: Theme.colors.todoSelectedBorder
+                }
+            },
+            State {
                 name: "completed"
-                when: todoItem && todoItem.is_done
+                when: todoItem && todoItem.is_done && !isSelected
                 PropertyChanges {
                     target: backgroundRect
                     color: Theme.colors.todoCompleted

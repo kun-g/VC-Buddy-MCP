@@ -108,11 +108,14 @@ ApplicationWindow {
                             id: todoListView
                             model: backend ? backend.todoModel : null
                             clip: true  // 确保列表项不会溢出ListView边界
+                            currentIndex: -1  // 默认不选中任何项目
                             
                             delegate: TodoItemDelegate {
                                 width: todoListView.width
                                 todoItem: model.todoItem
+                                isSelected: todoListView.currentIndex === model.index
                                 onItemClicked: {
+                                    todoListView.currentIndex = model.index
                                     if (backend) backend.selectTodoItem(model.index)
                                 }
                                 onItemDoubleClicked: {
