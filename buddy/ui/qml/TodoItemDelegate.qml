@@ -6,7 +6,7 @@ Item {
     id: root
     height: contentColumn.height + 8
     
-    property var todoItem
+    property var todoItem: modelData.todoItem
     property int indentLevel: todoItem ? todoItem.level - 1 : 0
     
     signal itemClicked()
@@ -80,7 +80,7 @@ Item {
                 // 标题文本
                 Text {
                     Layout.fillWidth: true
-                    text: todoItem ? todoItem.display_title : ""
+                    text: todoItem ? todoItem.display_title : "加载中..."
                     font.pixelSize: 12
                     font.bold: indentLevel === 0
                     color: "#333"
@@ -99,7 +99,12 @@ Item {
             
             // 属性显示
             Repeater {
-                model: todoItem && todoItem.attributes ? Object.keys(todoItem.attributes) : []
+                model: {
+                    if (todoItem && todoItem.attributes) {
+                        return Object.keys(todoItem.attributes)
+                    }
+                    return []
+                }
                 
                 RowLayout {
                     Layout.fillWidth: true
@@ -121,7 +126,7 @@ Item {
                     
                     Text {
                         Layout.fillWidth: true
-                        text: todoItem.attributes[modelData]
+                        text: todoItem && todoItem.attributes ? todoItem.attributes[modelData] : ""
                         font.pixelSize: 10
                         color: "#888"
                         wrapMode: Text.WordWrap
@@ -133,11 +138,17 @@ Item {
             Text {
                 Layout.fillWidth: true
                 Layout.leftMargin: indentLevel * 16
-                text: todoItem && todoItem.content ? todoItem.content.substring(0, 100) + (todoItem.content.length > 100 ? "..." : "") : ""
+                text: {
+                    if (todoItem && todoItem.content) {
+                        var content = todoItem.content.toString()
+                        return content.length > 100 ? content.substring(0, 100) + "..." : content
+                    }
+                    return ""
+                }
                 font.pixelSize: 10
                 color: "#666"
                 wrapMode: Text.WordWrap
-                visible: todoItem && todoItem.content && todoItem.content.trim() !== ""
+                visible: todoItem && todoItem.content && todoItem.content.toString().trim() !== ""
             }
         }
     }

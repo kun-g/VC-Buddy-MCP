@@ -81,27 +81,43 @@ class AnswerBoxBackend(QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
         
-        # 读取输入数据
-        summary = ""
-        while True:
-            line = sys.stdin.readline()
-            if not line:
-                break
-            summary += line
-        summary = summary.strip()
+        # 首先初始化默认值
+        self._summary_text = "等待数据输入..."
+        self._project_directory = None
         
-        if not summary:
-            # 如果没有输入，使用默认测试数据
+        # 尝试读取输入数据（非阻塞）
+        data = None
+        try:
+            # 检查是否有标准输入数据
+            if not sys.stdin.isatty():  # 如果有管道输入
+                input_data = sys.stdin.read().strip()
+                if input_data:
+                    data = json.loads(input_data)
+                    print(f"DEBUG: 读取到输入数据: {data}", file=sys.stderr)
+                else:
+                    print("DEBUG: 标准输入为空", file=sys.stderr)
+            else:
+                print("DEBUG: 没有管道输入，使用测试模式", file=sys.stderr)
+        except json.JSONDecodeError as e:
+            print(f"DEBUG: JSON解析错误: {e}", file=sys.stderr)
+        except Exception as e:
+            print(f"DEBUG: 读取输入时出错: {e}", file=sys.stderr)
+        
+        # 如果没有输入数据，使用测试数据
+        if not data:
+            current_dir = os.getcwd()
             data = {
-                "summary": "QML测试模式",
-                "project_directory": os.getcwd()
+                "summary": f"QML测试模式 - 当前目录: {current_dir}",
+                "project_directory": current_dir
             }
-        else:
-            data = json.loads(summary)
+            print(f"DEBUG: 使用测试数据: {data}", file=sys.stderr)
         
         # 解析输入数据
-        self._summary_text = data.get("summary", "")
+        self._summary_text = data.get("summary", "无任务摘要")
         self._project_directory = data.get("project_directory", None)
+        
+        print(f"DEBUG: 摘要文本: {self._summary_text[:100]}...", file=sys.stderr)
+        print(f"DEBUG: 项目目录: {self._project_directory}", file=sys.stderr)
         
         # 根据项目目录获取配置管理器
         if self._project_directory:
@@ -127,7 +143,7 @@ class AnswerBoxBackend(QObject):
         
         # 调试信息
         print(f"DEBUG: 加载了 {len(self._todo_items)} 个TODO项目", file=sys.stderr)
-        print(f"DEBUG: 项目目录: {self._project_directory}", file=sys.stderr)
+        print(f"DEBUG: 窗口标题: {self._window_title}", file=sys.stderr)
     
     # 属性定义
     @Property(str, constant=True)
@@ -248,22 +264,36 @@ class AnswerBoxBackend(QObject):
     @Slot(str)
     def sendResponse(self, feedback_text: str):
         """发送响应"""
-        print(f"DEBUG: 发送响应: {feedback_text[:50]}...", file=sys.stderr)
-        response = {
-            "result": feedback_text
-        }
+        print(f"DEBUG: 准备发送响应: {feedback_text[:100]}...", file=sys.stderr)
         
-        # 输出响应并退出
-        sys.stdout.write(json.dumps(response, ensure_ascii=False))
-        sys.stdout.flush()
-        print(f"DEBUG: 响应已发送，准备退出", file=sys.stderr)
-        QGuiApplication.instance().quit()
+        try:
+            response = {
+                "result": feedback_text
+            }
+            
+            # 输出到标准输出
+            output = json.dumps(response, ensure_ascii=False)
+            print(output)  # 使用 print 而不是 sys.stdout.write
+            sys.stdout.flush()
+            
+            print(f"DEBUG: 响应已发送到标准输出", file=sys.stderr)
+            
+            # 延迟退出，确保输出完成
+            QGuiApplication.instance().quit()
+            
+        except Exception as e:
+            print(f"ERROR: 发送响应时出错: {e}", file=sys.stderr)
+            QGuiApplication.instance().quit()
 
 
 class AnswerBoxQML:
     """QML版本的AnswerBox应用"""
     
     def __init__(self):
+        # 设置 QML 样式，避免样式警告
+        import os
+        os.environ["QT_QUICK_CONTROLS_STYLE"] = "Material"
+        
         self.app = QGuiApplication(sys.argv)
         self.engine = QQmlApplicationEngine()
         
@@ -282,15 +312,19 @@ class AnswerBoxQML:
         
         # 加载QML文件
         qml_file = qml_dir / "Main.qml"
+        print(f"DEBUG: 加载QML文件: {qml_file}", file=sys.stderr)
         self.engine.load(qml_file)
         
         # 检查是否加载成功
         if not self.engine.rootObjects():
             print("ERROR: 无法加载QML文件", file=sys.stderr)
             sys.exit(-1)
+        else:
+            print("DEBUG: QML界面加载成功", file=sys.stderr)
     
     def run(self):
         """运行应用"""
+        print("DEBUG: 启动GUI事件循环", file=sys.stderr)
         return self.app.exec()
 
 
