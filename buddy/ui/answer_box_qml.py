@@ -204,6 +204,47 @@ class AnswerBoxBackend(QObject):
             self.todoContentInserted.emit(insert_text)
             print(f"DEBUG: 发送插入信号: {insert_text[:50]}...", file=sys.stderr)
     
+    @Slot(int)
+    def markTodoDone(self, index: int):
+        """标记TODO任务为完成"""
+        print(f"DEBUG: 标记TODO完成 {index}", file=sys.stderr)
+        todo_item = self._todo_model.getTodoItem(index)
+        if todo_item:
+            todo_item.mark_as_done()
+            self._save_todos_to_file()
+            # 刷新模型以更新显示
+            self._todo_model.setTodos(self._todo_items)
+    
+    @Slot(int)
+    def markTodoUndone(self, index: int):
+        """标记TODO任务为未完成"""
+        print(f"DEBUG: 标记TODO未完成 {index}", file=sys.stderr)
+        todo_item = self._todo_model.getTodoItem(index)
+        if todo_item:
+            todo_item.mark_as_undone()
+            self._save_todos_to_file()
+            # 刷新模型以更新显示
+            self._todo_model.setTodos(self._todo_items)
+    
+    def _save_todos_to_file(self):
+        """保存TODO列表到文件"""
+        if not self._project_directory or not self._todo_items:
+            return
+        
+        try:
+            # 查找TODO文件
+            todo_file = self._todo_parser.find_todo_file(self._project_directory)
+            
+            if todo_file:
+                # 保存更新后的TODO列表
+                success = self._todo_parser.save_todos_to_file(self._todo_items, todo_file)
+                if not success:
+                    print("WARNING: 无法保存TODO文件，请检查文件权限。", file=sys.stderr)
+            else:
+                print("WARNING: 在项目目录中未找到TODO.md文件。", file=sys.stderr)
+        except Exception as e:
+            print(f"ERROR: 保存TODO文件时发生错误：{str(e)}", file=sys.stderr)
+    
     @Slot(str)
     def sendResponse(self, feedback_text: str):
         """发送响应"""

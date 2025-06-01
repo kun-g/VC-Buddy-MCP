@@ -90,6 +90,12 @@ ApplicationWindow {
                                 onItemDoubleClicked: {
                                     if (backend) backend.insertTodoContent(model.index)
                                 }
+                                onMarkDone: {
+                                    if (backend) backend.markTodoDone(model.index)
+                                }
+                                onMarkUndone: {
+                                    if (backend) backend.markTodoUndone(model.index)
+                                }
                             }
                         }
                     }

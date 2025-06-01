@@ -11,6 +11,8 @@ Item {
     
     signal itemClicked()
     signal itemDoubleClicked()
+    signal markDone()
+    signal markUndone()
     
     Rectangle {
         anchors.fill: parent
@@ -23,9 +25,32 @@ Item {
             id: mouseArea
             anchors.fill: parent
             hoverEnabled: true
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
             
-            onClicked: root.itemClicked()
+            onClicked: function(mouse) {
+                if (mouse.button === Qt.LeftButton) {
+                    root.itemClicked()
+                } else if (mouse.button === Qt.RightButton) {
+                    contextMenu.popup()
+                }
+            }
             onDoubleClicked: root.itemDoubleClicked()
+        }
+        
+        // 右键菜单
+        Menu {
+            id: contextMenu
+            
+            MenuItem {
+                text: todoItem && todoItem.is_done ? "❌ 标记为未完成" : "✅ 标记为完成"
+                onTriggered: {
+                    if (todoItem && todoItem.is_done) {
+                        root.markUndone()
+                    } else {
+                        root.markDone()
+                    }
+                }
+            }
         }
         
         ColumnLayout {
