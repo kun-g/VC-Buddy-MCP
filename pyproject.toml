@@ -22,10 +22,8 @@ dependencies = [
     "PySide6>=6.6.0",
     "fastmcp>=2.5.2",
     "pyaudio>=0.2.11",
-    "qasync>=0.24.0",
-    "httpx>=0.25.0",
     "openai>=1.0.0",
-    "anthropic>=0.8.0",
+    "requests>=2.31.0",
 ]
 
 [project.optional-dependencies]
@@ -37,13 +35,6 @@ dev = [
     "mypy>=1.6.0",
     "ruff>=0.1.0",
 ]
-
-[project.scripts]
-buddy = "buddy.ui.main:main"
-buddy-mcp-stdio = "buddy.server.stdio_runner:main"
-buddy-mcp     = "buddy.server.run_fastmcp:main"
-buddy-fastmcp = "buddy.server.run_fastmcp:main"
-buddy-test-fastmcp = "buddy.client.test_fastmcp_client:main"
 
 [dependency-groups]
 # 开发依赖

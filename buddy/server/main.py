@@ -55,7 +55,8 @@ def ask_for_feedback(
     
     # 启动 ui/answer_box.py,获取 stdout
     process = subprocess.Popen(
-        ["python", "buddy/ui/answer_box.py"], 
+        # ["python", "buddy/ui/answer_box.py"], 
+        ["python", "buddy/ui/answer_box_qml.py"], 
         stdout=subprocess.PIPE, 
         stdin=subprocess.PIPE, 
         text=True,

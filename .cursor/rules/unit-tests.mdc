@@ -1,0 +1,7 @@
+---
+description: 
+globs: **/tests/*.py
+alwaysApply: false
+---
+You can only add unit test.
+Ask for permission if you want to modify unit test.

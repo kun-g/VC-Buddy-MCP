@@ -13,12 +13,14 @@ from PySide6.QtGui import QKeySequence, QShortcut, QAction
 try:
     from .config import config_manager, get_project_config_manager
     from .todo_parser import TodoParser, TodoItem
+    from .voice_recorder import VoiceButton
 except ImportError:
     # 如果作为脚本直接运行，需要添加路径
     current_dir = Path(__file__).parent
     sys.path.insert(0, str(current_dir))
     from config import config_manager, get_project_config_manager
     from todo_parser import TodoParser, TodoItem
+    from voice_recorder import VoiceButton
 
 # --- 设置工具类 ---
 class SettingsManager:
@@ -112,27 +114,28 @@ class AnswerBox(QDialog):
         """设置用户界面"""
         self.layout = QVBoxLayout()
         
-        # 对话框标题
-        summary_text = ""
-        if self.project_directory:
-            folder_name = Path(self.project_directory).name
-            summary_text = f"✅ 项目: {folder_name}"
-            if self.todo_items:
-                summary_text += f" | 📝 TODO任务: {len(self.todo_items)} 项"
-        else:
-            summary_text = "💬 Feedback Dialog"
+        # AI 工作总结显示区域 - 使用 QTextBrowser 以便更好地显示长文本
+        summary_label = QLabel("🤖 AI 工作总结:")
+        summary_label.setStyleSheet("font-weight: bold; color: #333; margin-bottom: 4px;")
+        self.layout.addWidget(summary_label)
         
-        self.summary_display = QLabel(summary_text)
+        self.summary_display = QTextBrowser()
+        self.summary_display.setPlainText(self.summary_text)
+        self.summary_display.setMaximumHeight(120)  # 限制高度，避免占用太多空间
         self.summary_display.setStyleSheet("""
-            QLabel {
-                background-color: #f0f9ff;
-                border: 1px solid #0ea5e9;
-                border-radius: 6px;
-                padding: 8px 12px;
-                font-size: 12px;
-                font-weight: bold;
-                color: #0c4a6e;
-                margin-bottom: 12px;
+            QTextBrowser {
+                background-color: #f8fafc;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 12px;
+                font-size: 13px;
+                color: #334155;
+                margin-bottom: 16px;
+                line-height: 1.4;
+            }
+            QTextBrowser:focus {
+                border: 2px solid #3b82f6;
+                outline: none;
             }
         """)
         self.layout.addWidget(self.summary_display)
@@ -190,6 +193,9 @@ class AnswerBox(QDialog):
                     padding: 8px;
                     font-size: 12px;
                 }
+                QTextEdit:focus {
+                    border: 2px solid #2196f3;
+                }
             """)
             self.layout.addWidget(self.input)
             
@@ -219,6 +225,9 @@ class AnswerBox(QDialog):
             """)
             self.layout.addWidget(self.commit_checkbox)
         
+        # 语音按钮和发送按钮的水平布局
+        button_container = QHBoxLayout()
+        
         # 发送按钮
         self.button = QPushButton("📤 Send (Ctrl+Enter)")
         self.button.setStyleSheet("""
@@ -239,7 +248,17 @@ class AnswerBox(QDialog):
             }
         """)
         self.button.clicked.connect(self.respond)
-        self.layout.addWidget(self.button)
+        button_container.addWidget(self.button)
+        
+        # 添加语音按钮（在发送按钮右边）
+        self.voice_button = VoiceButton()
+        self.voice_button.connect_transcription_ready(self._on_voice_transcription)
+        button_container.addWidget(self.voice_button)
+        
+        # 将按钮布局添加到主布局
+        button_widget = QWidget()
+        button_widget.setLayout(button_container)
+        self.layout.addWidget(button_widget)
         
         # 设置 Ctrl+Enter 快捷键
         self.send_shortcut = QShortcut(QKeySequence("Ctrl+Return"), self)
@@ -331,7 +350,7 @@ class AnswerBox(QDialog):
 
     def _create_tree_item(self, todo_item: TodoItem) -> QTreeWidgetItem:
         """创建树状视图项目"""
-        tree_item = QTreeWidgetItem([todo_item.title])
+        tree_item = QTreeWidgetItem([todo_item.display_title])
         tree_item.setData(0, Qt.UserRole, todo_item)
         
         # 添加子项目
@@ -474,6 +493,22 @@ class AnswerBox(QDialog):
                 QMessageBox.warning(self, "文件未找到", "在项目目录中未找到TODO.md文件。")
         except Exception as e:
             QMessageBox.critical(self, "保存错误", f"保存TODO文件时发生错误：{str(e)}")
+
+    def _on_voice_transcription(self, transcription: str):
+        """处理语音转写结果"""
+        if transcription.strip():
+            # 获取当前输入框内容
+            current_text = self.input.toPlainText()
+            
+            # 如果输入框不为空，添加换行
+            if current_text.strip():
+                transcription = "\n\n" + transcription
+            
+            # 添加转写结果到输入框
+            self.input.append(transcription)
+            
+            # 将焦点设置到输入框
+            self.input.setFocus()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

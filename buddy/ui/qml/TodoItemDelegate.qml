@@ -1,30 +1,169 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import Qt5Compat.GraphicalEffects
+import "."
 
 Item {
     id: root
-    height: contentColumn.height + 8
+    height: contentColumn.height + Theme.spacing.normal
     
-    property var todoItem
+    property var todoItem: null
     property int indentLevel: todoItem ? todoItem.level - 1 : 0
+    property bool isSelected: false
     
     signal itemClicked()
     signal itemDoubleClicked()
+    signal markDone()
+    signal markUndone()
+    signal deleteTodo()
+    
+    // 右键菜单 - 使用 Popup 替代 Menu
+    Popup {
+        id: contextMenu
+        width: 160
+        height: menuColumn.height + 16
+        padding: 8
+        
+        background: Rectangle {
+            color: Theme.colors.background
+            border.color: Theme.colors.border
+            border.width: 1
+            radius: Theme.radius.normal
+            
+            // 添加阴影效果
+            layer.enabled: true
+            layer.effect: DropShadow {
+                horizontalOffset: 0
+                verticalOffset: 2
+                radius: 8
+                samples: 16
+                color: "#20000000"
+            }
+        }
+        
+        Column {
+            id: menuColumn
+            width: parent.width - 16
+            spacing: 2
+            
+            Rectangle {
+                width: parent.width
+                height: 24
+                color: markMouseArea.containsMouse ? Theme.colors.hover : "transparent"
+                radius: Theme.radius.small
+                
+                Text {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 8
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: todoItem && todoItem.is_done ? "❌ 标记未完成" : "✅ 标记完成"
+                    font.pixelSize: Theme.fonts.small
+                    font.family: Theme.fonts.family
+                    color: Theme.colors.text
+                }
+                
+                MouseArea {
+                    id: markMouseArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: {
+                        console.log("DEBUG: 菜单项被触发，当前状态:", todoItem ? todoItem.is_done : "无数据")
+                        contextMenu.close()
+                        if (todoItem && todoItem.is_done) {
+                            root.markUndone()
+                        } else {
+                            root.markDone()
+                        }
+                    }
+                }
+            }
+            
+            // 删除菜单项（仅对已完成的TODO显示）
+            Rectangle {
+                width: parent.width
+                height: 24
+                color: deleteMouseArea.containsMouse ? Theme.colors.hover : "transparent"
+                radius: Theme.radius.small
+                visible: todoItem && todoItem.is_done
+                
+                Text {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 8
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "🗑️ 删除"
+                    font.pixelSize: Theme.fonts.small
+                    font.family: Theme.fonts.family
+                    color: Theme.colors.error
+                }
+                
+                MouseArea {
+                    id: deleteMouseArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: {
+                        console.log("DEBUG: 删除TODO项目")
+                        contextMenu.close()
+                        root.deleteTodo()
+                    }
+                }
+            }
+        }
+    }
     
     Rectangle {
+        id: backgroundRect
         anchors.fill: parent
-        color: mouseArea.containsMouse ? "#f5f5f5" : "transparent"
-        border.color: "#f0f0f0"
+        color: mouseArea.containsMouse ? Theme.colors.hover : "transparent"
+        border.color: Theme.colors.borderLight
         border.width: 1
-        radius: 3
+        radius: Theme.radius.small
+        
+        // 状态管理
+        states: [
+            State {
+                name: "selected"
+                when: isSelected
+                PropertyChanges {
+                    target: backgroundRect
+                    color: Theme.colors.todoSelected
+                    border.color: Theme.colors.todoSelectedBorder
+                }
+            },
+            State {
+                name: "completed"
+                when: todoItem && todoItem.is_done && !isSelected
+                PropertyChanges {
+                    target: backgroundRect
+                    color: Theme.colors.todoCompleted
+                    border.color: Theme.colors.todoCompletedBorder
+                }
+            }
+        ]
+        
+        transitions: Transition {
+            ColorAnimation {
+                duration: Theme.animation.fast
+                easing.type: Easing.OutQuad
+            }
+        }
         
         MouseArea {
             id: mouseArea
             anchors.fill: parent
             hoverEnabled: true
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
             
-            onClicked: root.itemClicked()
+            onClicked: function(mouse) {
+                if (mouse.button === Qt.LeftButton) {
+                    root.itemClicked()
+                } else if (mouse.button === Qt.RightButton) {
+                    console.log("DEBUG: 右键点击 TODO 项目，准备弹出菜单")
+                    contextMenu.x = mouse.x
+                    contextMenu.y = mouse.y
+                    contextMenu.open()
+                }
+            }
             onDoubleClicked: root.itemDoubleClicked()
         }
         
@@ -33,72 +172,87 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            anchors.margins: 4
-            anchors.leftMargin: 4 + (indentLevel * 16)
-            spacing: 2
+            anchors.margins: Theme.spacing.small
+            anchors.leftMargin: Theme.spacing.small + (indentLevel * Theme.spacing.large)
+            spacing: Theme.spacing.tiny
             
             // 标题行
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 4
+                spacing: Theme.spacing.small
                 
                 // 层级指示器
                 Repeater {
                     model: indentLevel
                     Rectangle {
                         width: 2
-                        height: 16
-                        color: "#ddd"
+                        height: Theme.spacing.large
+                        color: Theme.colors.border
                     }
                 }
                 
                 // 标题文本
                 Text {
                     Layout.fillWidth: true
-                    text: todoItem ? todoItem.display_title : ""
-                    font.pixelSize: 12
+                    text: todoItem ? todoItem.display_title : "加载中..."
+                    font.pixelSize: Theme.fonts.normal
+                    font.family: Theme.fonts.family
                     font.bold: indentLevel === 0
-                    color: "#333"
+                    color: Theme.colors.text
                     wrapMode: Text.WordWrap
                 }
                 
                 // 完成状态指示器
                 Rectangle {
-                    width: 8
-                    height: 8
-                    radius: 4
-                    color: todoItem && todoItem.is_done ? "#4caf50" : "#ccc"
+                    width: Theme.spacing.normal
+                    height: Theme.spacing.normal
+                    radius: Theme.spacing.small
+                    color: todoItem && todoItem.is_done ? Theme.colors.success : Theme.colors.disabled
                     visible: todoItem && todoItem.attributes && Object.keys(todoItem.attributes).length > 0
+                    
+                    Behavior on color {
+                        ColorAnimation {
+                            duration: Theme.animation.fast
+                            easing.type: Easing.OutQuad
+                        }
+                    }
                 }
             }
             
             // 属性显示
             Repeater {
-                model: todoItem && todoItem.attributes ? Object.keys(todoItem.attributes) : []
+                model: {
+                    if (todoItem && todoItem.attributes) {
+                        return Object.keys(todoItem.attributes)
+                    }
+                    return []
+                }
                 
                 RowLayout {
                     Layout.fillWidth: true
-                    Layout.leftMargin: indentLevel * 16
-                    spacing: 4
+                    Layout.leftMargin: indentLevel * Theme.spacing.large
+                    spacing: Theme.spacing.small
                     
                     Text {
                         text: "📌"
-                        font.pixelSize: 10
-                        color: "#666"
+                        font.pixelSize: Theme.fonts.small
+                        color: Theme.colors.textSecondary
                     }
                     
                     Text {
                         text: modelData + ":"
-                        font.pixelSize: 10
+                        font.pixelSize: Theme.fonts.small
+                        font.family: Theme.fonts.family
                         font.bold: true
-                        color: "#666"
+                        color: Theme.colors.textSecondary
                     }
                     
                     Text {
                         Layout.fillWidth: true
-                        text: todoItem.attributes[modelData]
-                        font.pixelSize: 10
-                        color: "#888"
+                        text: todoItem && todoItem.attributes ? todoItem.attributes[modelData] : ""
+                        font.pixelSize: Theme.fonts.small
+                        font.family: Theme.fonts.family
+                        color: Theme.colors.textHint
                         wrapMode: Text.WordWrap
                     }
                 }
@@ -107,12 +261,19 @@ Item {
             // 内容预览（如果有的话）
             Text {
                 Layout.fillWidth: true
-                Layout.leftMargin: indentLevel * 16
-                text: todoItem && todoItem.content ? todoItem.content.substring(0, 100) + (todoItem.content.length > 100 ? "..." : "") : ""
-                font.pixelSize: 10
-                color: "#666"
+                Layout.leftMargin: indentLevel * Theme.spacing.large
+                text: {
+                    if (todoItem && todoItem.content) {
+                        var content = todoItem.content.toString()
+                        return content.length > 100 ? content.substring(0, 100) + "..." : content
+                    }
+                    return ""
+                }
+                font.pixelSize: Theme.fonts.small
+                font.family: Theme.fonts.family
+                color: Theme.colors.textSecondary
                 wrapMode: Text.WordWrap
-                visible: todoItem && todoItem.content && todoItem.content.trim() !== ""
+                visible: todoItem && todoItem.content && todoItem.content.toString().trim() !== ""
             }
         }
     }
