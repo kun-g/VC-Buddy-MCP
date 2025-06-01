@@ -76,6 +76,7 @@ class AnswerBoxBackend(QObject):
     # 信号定义
     todoContentInserted = Signal(str, arguments=['content'])
     responseReady = Signal(str, arguments=['response'])
+    selectedTodoDetailChanged = Signal()
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -88,7 +89,15 @@ class AnswerBoxBackend(QObject):
                 break
             summary += line
         summary = summary.strip()
-        data = json.loads(summary)
+        
+        if not summary:
+            # 如果没有输入，使用默认测试数据
+            data = {
+                "summary": "QML测试模式",
+                "project_directory": os.getcwd()
+            }
+        else:
+            data = json.loads(summary)
         
         # 解析输入数据
         self._summary_text = data.get("summary", "")
@@ -115,6 +124,10 @@ class AnswerBoxBackend(QObject):
         
         # 选中的TODO详情
         self._selected_todo_detail = "选择一个任务查看详情"
+        
+        # 调试信息
+        print(f"DEBUG: 加载了 {len(self._todo_items)} 个TODO项目", file=sys.stderr)
+        print(f"DEBUG: 项目目录: {self._project_directory}", file=sys.stderr)
     
     # 属性定义
     @Property(str, constant=True)
@@ -145,7 +158,7 @@ class AnswerBoxBackend(QObject):
     def todoModel(self):
         return self._todo_model
     
-    @Property(str, notify=lambda self: None)
+    @Property(str, notify=selectedTodoDetailChanged)
     def selectedTodoDetail(self):
         return self._selected_todo_detail
     
@@ -153,6 +166,7 @@ class AnswerBoxBackend(QObject):
     @Slot(int)
     def selectTodoItem(self, index: int):
         """选择TODO项目"""
+        print(f"DEBUG: 选择TODO项目 {index}", file=sys.stderr)
         todo_item = self._todo_model.getTodoItem(index)
         if todo_item:
             detail_text = f"<h3>{todo_item.display_title}</h3>"
@@ -171,10 +185,13 @@ class AnswerBoxBackend(QObject):
                 detail_text += "<p><i>无详细说明</i></p>"
             
             self._selected_todo_detail = detail_text
+            self.selectedTodoDetailChanged.emit()
+            print(f"DEBUG: 更新TODO详情", file=sys.stderr)
     
     @Slot(int)
     def insertTodoContent(self, index: int):
         """插入TODO内容到输入框"""
+        print(f"DEBUG: 插入TODO内容 {index}", file=sys.stderr)
         todo_item = self._todo_model.getTodoItem(index)
         if todo_item:
             # 准备要插入的内容
@@ -185,10 +202,12 @@ class AnswerBoxBackend(QObject):
             
             # 发送信号插入内容
             self.todoContentInserted.emit(insert_text)
+            print(f"DEBUG: 发送插入信号: {insert_text[:50]}...", file=sys.stderr)
     
     @Slot(str)
     def sendResponse(self, feedback_text: str):
         """发送响应"""
+        print(f"DEBUG: 发送响应: {feedback_text[:50]}...", file=sys.stderr)
         response = {
             "result": feedback_text
         }
@@ -196,6 +215,7 @@ class AnswerBoxBackend(QObject):
         # 输出响应并退出
         sys.stdout.write(json.dumps(response, ensure_ascii=False))
         sys.stdout.flush()
+        print(f"DEBUG: 响应已发送，准备退出", file=sys.stderr)
         QGuiApplication.instance().quit()
 
 
@@ -225,6 +245,7 @@ class AnswerBoxQML:
         
         # 检查是否加载成功
         if not self.engine.rootObjects():
+            print("ERROR: 无法加载QML文件", file=sys.stderr)
             sys.exit(-1)
     
     def run(self):
