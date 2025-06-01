@@ -1,0 +1,15 @@
+{
+  "app": {
+    "organization_name": "VC-Buddy",
+    "application_name": "AnswerBox",
+    "organization_domain": "vcbuddy.local"
+  },
+  "ui": {
+    "window": {
+      "default_width": 400,
+      "default_height": 300,
+      "remember_position": true,
+      "stay_on_top": true
+    }
+  }
+} 
