@@ -332,7 +332,7 @@ class AnswerBox(QDialog):
 
     def _create_tree_item(self, todo_item: TodoItem) -> QTreeWidgetItem:
         """创建树状视图项目"""
-        tree_item = QTreeWidgetItem([todo_item.title])
+        tree_item = QTreeWidgetItem([todo_item.display_title])
         tree_item.setData(0, Qt.UserRole, todo_item)
         
         # 添加子项目

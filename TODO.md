@@ -26,6 +26,7 @@ TODO加载时，不能正常显示完成状态。在 Answer Box 里操作的可�
 # 优化answer_box.py
 
 ## summary_display 要优化一下，以便阅读 AI 的工作总结
+state=done
 
 ## Style Sheet 模块
 实现一个 Style Sheet 模块，
@@ -48,6 +49,7 @@ https://doc.qt.io/qt-6/stylesheet.html
 ## 给 todo_parser.py 实现单元测试
 
 # 语音输入
+
 ## 支持语音输入
 
 # 支持 SSE 模式
