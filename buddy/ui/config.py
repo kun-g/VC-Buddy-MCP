@@ -6,31 +6,79 @@ from typing import Optional, Dict, Any
 class ConfigManager:
     """统一的配置管理器"""
     
-    def __init__(self, config_file: Optional[str] = None):
+    def __init__(self, config_file: Optional[str] = None, project_directory: Optional[str] = None):
+        self.project_directory = project_directory
         self.config_file = config_file or self._get_default_config_path()
         self._config = self._load_config()
     
     def _get_default_config_path(self) -> str:
         """获取默认配置文件路径"""
-        # 优先级：环境变量 > 用户主目录 > 当前目录
+        # 优先级：项目目录 > 环境变量 > 用户主目录
+        
+        # 1. 项目目录配置（最高优先级）
+        if self.project_directory and os.path.exists(self.project_directory):
+            project_config = Path(self.project_directory) / ".vc-buddy" / "config.json"
+            if project_config.exists():
+                return str(project_config)
+        
+        # 2. 环境变量指定的配置
         if config_path := os.getenv("VC_BUDDY_CONFIG"):
             return config_path
         
-        # 在用户主目录下创建配置文件
+        # 3. 在用户主目录下创建配置文件
         home_config = Path.home() / ".vc-buddy" / "config.json"
         home_config.parent.mkdir(exist_ok=True)
         return str(home_config)
     
     def _load_config(self) -> Dict[str, Any]:
-        """加载配置文件"""
-        try:
-            if os.path.exists(self.config_file):
-                with open(self.config_file, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-        except (json.JSONDecodeError, IOError) as e:
-            print(f"Warning: Could not load config file {self.config_file}: {e}")
+        """加载配置文件，支持多层级配置合并"""
+        # 从默认配置开始
+        config = self._get_default_config()
         
-        return self._get_default_config()
+        # 加载用户主目录配置
+        home_config_path = Path.home() / ".vc-buddy" / "config.json"
+        if home_config_path.exists():
+            try:
+                with open(home_config_path, 'r', encoding='utf-8') as f:
+                    user_config = json.load(f)
+                    config = self._merge_configs(config, user_config)
+            except (json.JSONDecodeError, IOError) as e:
+                print(f"Warning: Could not load user config file {home_config_path}: {e}")
+        
+        # 加载环境变量指定的配置
+        env_config_path = os.getenv("VC_BUDDY_CONFIG")
+        if env_config_path and os.path.exists(env_config_path):
+            try:
+                with open(env_config_path, 'r', encoding='utf-8') as f:
+                    env_config = json.load(f)
+                    config = self._merge_configs(config, env_config)
+            except (json.JSONDecodeError, IOError) as e:
+                print(f"Warning: Could not load env config file {env_config_path}: {e}")
+        
+        # 加载项目目录配置（最高优先级）
+        if self.project_directory and os.path.exists(self.project_directory):
+            project_config_path = Path(self.project_directory) / ".vc-buddy" / "config.json"
+            if project_config_path.exists():
+                try:
+                    with open(project_config_path, 'r', encoding='utf-8') as f:
+                        project_config = json.load(f)
+                        config = self._merge_configs(config, project_config)
+                except (json.JSONDecodeError, IOError) as e:
+                    print(f"Warning: Could not load project config file {project_config_path}: {e}")
+        
+        return config
+    
+    def _merge_configs(self, base_config: Dict[str, Any], override_config: Dict[str, Any]) -> Dict[str, Any]:
+        """递归合并配置字典"""
+        result = base_config.copy()
+        
+        for key, value in override_config.items():
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                result[key] = self._merge_configs(result[key], value)
+            else:
+                result[key] = value
+        
+        return result
     
     def _get_default_config(self) -> Dict[str, Any]:
         """获取默认配置"""
@@ -50,14 +98,22 @@ class ConfigManager:
             }
         }
     
-    def save_config(self):
+    def save_config(self, save_to_project: bool = False):
         """保存配置到文件"""
+        target_file = self.config_file
+        
+        # 如果指定保存到项目目录
+        if save_to_project and self.project_directory:
+            project_config_dir = Path(self.project_directory) / ".vc-buddy"
+            project_config_dir.mkdir(exist_ok=True)
+            target_file = str(project_config_dir / "config.json")
+        
         try:
-            os.makedirs(os.path.dirname(self.config_file), exist_ok=True)
-            with open(self.config_file, 'w', encoding='utf-8') as f:
+            os.makedirs(os.path.dirname(target_file), exist_ok=True)
+            with open(target_file, 'w', encoding='utf-8') as f:
                 json.dump(self._config, f, indent=2, ensure_ascii=False)
         except IOError as e:
-            print(f"Warning: Could not save config file {self.config_file}: {e}")
+            print(f"Warning: Could not save config file {target_file}: {e}")
     
     def get(self, key_path: str, default=None):
         """
@@ -106,4 +162,8 @@ class ConfigManager:
         return os.getenv("VC_BUDDY_DOMAIN") or self.get("app.organization_domain", "vcbuddy.local")
 
 # 全局配置实例
-config_manager = ConfigManager() 
+config_manager = ConfigManager()
+
+def get_project_config_manager(project_directory: str) -> ConfigManager:
+    """获取项目特定的配置管理器"""
+    return ConfigManager(project_directory=project_directory) 
