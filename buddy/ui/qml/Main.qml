@@ -355,7 +355,7 @@ ApplicationWindow {
                                 
                                 var feedbackText = inputArea.text
                                 if (commitCheckbox.checked) {
-                                    feedbackText = "请只 commit 你刚才修改的文件，按规范撰写 commit 信息。\n\n接下来实现：\n" + feedbackText
+                                    feedbackText = "请只 commit 你刚才修改的文件，按规范撰写 commit 信息。 注意⚠️：之后不要自己 commit\n\n接下来实现：\n" + feedbackText
                                     // 发送后自动取消Commit复选框的选中状态
                                     commitCheckbox.checked = false
                                 }

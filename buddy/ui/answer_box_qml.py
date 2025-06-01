@@ -101,11 +101,8 @@ class AnswerBoxBackend(QObject):
                 input_data = sys.stdin.read().strip()
                 if input_data:
                     data = json.loads(input_data)
-                    print(f"DEBUG: 读取到输入数据: {data}", file=sys.stderr)
                 else:
                     print("DEBUG: 标准输入为空", file=sys.stderr)
-            else:
-                print("DEBUG: 没有管道输入，使用测试模式", file=sys.stderr)
         except json.JSONDecodeError as e:
             print(f"DEBUG: JSON解析错误: {e}", file=sys.stderr)
         except Exception as e:
@@ -118,14 +115,10 @@ class AnswerBoxBackend(QObject):
                 "summary": f"QML测试模式 - 当前目录: {current_dir}",
                 "project_directory": current_dir
             }
-            print(f"DEBUG: 使用测试数据: {data}", file=sys.stderr)
         
         # 解析输入数据
         self._summary_text = data.get("summary", "无任务摘要")
         self._project_directory = data.get("project_directory", None)
-        
-        print(f"DEBUG: 摘要文本: {self._summary_text[:100]}...", file=sys.stderr)
-        print(f"DEBUG: 项目目录: {self._project_directory}", file=sys.stderr)
         
         # 根据项目目录获取配置管理器
         if self._project_directory:
@@ -166,10 +159,6 @@ class AnswerBoxBackend(QObject):
         self._voice_recorder.transcription_ready.connect(self._on_transcription_ready)
         self._voice_recorder.error_occurred.connect(self._on_voice_error)
         
-        # 调试信息
-        print(f"DEBUG: 加载了 {len(self._todo_items)} 个TODO项目", file=sys.stderr)
-        print(f"DEBUG: 窗口标题: {self._window_title}", file=sys.stderr)
-    
     # 属性定义
     @Property(str, constant=True)
     def summaryText(self):
@@ -240,22 +229,6 @@ class AnswerBoxBackend(QObject):
             return self.defaultHeight
         return self._settings.value("window/height", self.defaultHeight, type=int)
     
-    @Property(bool, constant=True)
-    def hasValidSavedGeometry(self):
-        """检查是否有有效的保存几何信息"""
-        if not self.rememberPosition:
-            return False
-        
-        x = self.savedX
-        y = self.savedY
-        width = self.savedWidth
-        height = self.savedHeight
-        
-        # 检查坐标是否有效（不为-1且在合理范围内）
-        return (x >= 0 and y >= 0 and 
-                width >= 200 and height >= 150 and
-                width <= 3000 and height <= 2000)
-    
     @Property(bool, notify=voiceRecordingStateChanged)
     def isRecording(self):
         """录音状态属性"""
@@ -274,22 +247,18 @@ class AnswerBoxBackend(QObject):
         """录音开始时的处理"""
         self._is_recording = True
         self.voiceRecordingStateChanged.emit(True)
-        print("DEBUG: 录音开始", file=sys.stderr)
     
     def _on_recording_stopped(self):
         """录音停止时的处理"""
         self._is_recording = False
         self.voiceRecordingStateChanged.emit(False)
-        print("DEBUG: 录音停止", file=sys.stderr)
     
     def _on_transcription_ready(self, transcription: str):
         """转写完成时的处理"""
-        print(f"DEBUG: 语音转写完成: {transcription[:50]}...", file=sys.stderr)
         self.voiceTranscriptionReady.emit(transcription)
     
     def _on_voice_error(self, error_message: str):
         """语音错误处理"""
-        print(f"ERROR: 语音功能错误: {error_message}", file=sys.stderr)
         self._is_recording = False
         self.voiceRecordingStateChanged.emit(False)
         self.voiceErrorOccurred.emit(error_message)
@@ -320,7 +289,6 @@ class AnswerBoxBackend(QObject):
     @Slot(int)
     def insertTodoContent(self, index: int):
         """插入TODO内容到输入框"""
-        print(f"DEBUG: 插入TODO内容 {index}", file=sys.stderr)
         todo_item = self._todo_model.getTodoItem(index)
         if todo_item:
             # 准备要插入的内容
@@ -331,12 +299,10 @@ class AnswerBoxBackend(QObject):
             
             # 发送信号插入内容
             self.todoContentInserted.emit(insert_text)
-            print(f"DEBUG: 发送插入信号: {insert_text[:50]}...", file=sys.stderr)
     
     @Slot(int)
     def markTodoDone(self, index: int):
         """标记TODO任务为完成"""
-        print(f"DEBUG: 标记TODO完成 {index}", file=sys.stderr)
         todo_item = self._todo_model.getTodoItem(index)
         if todo_item:
             todo_item.mark_as_done()
@@ -347,7 +313,6 @@ class AnswerBoxBackend(QObject):
     @Slot(int)
     def markTodoUndone(self, index: int):
         """标记TODO任务为未完成"""
-        print(f"DEBUG: 标记TODO未完成 {index}", file=sys.stderr)
         todo_item = self._todo_model.getTodoItem(index)
         if todo_item:
             todo_item.mark_as_undone()
@@ -358,7 +323,6 @@ class AnswerBoxBackend(QObject):
     @Slot(int)
     def deleteTodoItem(self, index: int):
         """删除已完成的TODO项目"""
-        print(f"DEBUG: 删除TODO项目 {index}", file=sys.stderr)
         todo_item = self._todo_model.getTodoItem(index)
         if todo_item and todo_item.is_done:
             # 从列表中移除该项目
@@ -413,7 +377,7 @@ class AnswerBoxBackend(QObject):
             
             # 输出到标准输出
             output = json.dumps(response, ensure_ascii=False)
-            print(output)  # 使用 print 而不是 sys.stdout.write
+            sys.stdout.write(output)
             sys.stdout.flush()
             
             # 延迟退出，确保输出完成
@@ -428,8 +392,6 @@ class AnswerBoxBackend(QObject):
         if not self.rememberPosition:
             return
         
-        print(f"DEBUG: 保存窗口几何信息: x={x}, y={y}, width={width}, height={height}", file=sys.stderr)
-        
         self._settings.setValue("window/x", x)
         self._settings.setValue("window/y", y)
         self._settings.setValue("window/width", width)
@@ -437,6 +399,22 @@ class AnswerBoxBackend(QObject):
         self._settings.sync()
         
         self.windowGeometryChanged.emit()
+            
+    @Slot(result=bool)
+    def hasValidSavedGeometry(self):
+        """检查是否有有效的保存几何信息"""
+        if not self.rememberPosition:
+            return False
+        
+        x = self.savedX
+        y = self.savedY
+        width = self.savedWidth
+        height = self.savedHeight
+        
+        # 检查坐标是否有效（不为-1且在合理范围内）
+        return (x >= 0 and y >= 0 and 
+                width >= 200 and height >= 150 and
+                width <= 3000 and height <= 2000)
 
 class AnswerBoxQML:
     """QML版本的AnswerBox应用"""
@@ -453,10 +431,6 @@ class AnswerBoxQML:
         
         # 加载默认 QSS 样式
         style_loaded = load_default_styles()
-        if style_loaded:
-            print("DEBUG: QSS 样式加载成功", file=sys.stderr)
-        else:
-            print("WARNING: QSS 样式加载失败，使用默认样式", file=sys.stderr)
         
         self.engine = QQmlApplicationEngine()
         
@@ -473,8 +447,6 @@ class AnswerBoxQML:
         
         # 添加QML模块路径
         qml_dir = Path(__file__).parent / "qml"
-        print(f"DEBUG: QML 目录: {qml_dir}", file=sys.stderr)
-        print(f"DEBUG: QML 目录是否存在: {qml_dir.exists()}", file=sys.stderr)
         
         # 添加模块搜索路径
         self.engine.addImportPath(str(qml_dir))
@@ -482,16 +454,12 @@ class AnswerBoxQML:
         
         # 检查 qmldir 文件
         qmldir_file = qml_dir / "qmldir"
-        print(f"DEBUG: qmldir 文件: {qmldir_file}", file=sys.stderr)
-        print(f"DEBUG: qmldir 是否存在: {qmldir_file.exists()}", file=sys.stderr)
         if qmldir_file.exists():
             with open(qmldir_file, 'r', encoding='utf-8') as f:
                 qmldir_content = f.read()
-            print(f"DEBUG: qmldir 内容:\n{qmldir_content}", file=sys.stderr)
         
         # 加载QML文件
         qml_file = qml_dir / "Main.qml"
-        print(f"DEBUG: 加载QML文件: {qml_file}", file=sys.stderr)
         self.engine.load(qml_file)
         
         # 检查是否加载成功
@@ -503,7 +471,6 @@ class AnswerBoxQML:
     
     def run(self):
         """运行应用"""
-        print("DEBUG: 启动GUI事件循环", file=sys.stderr)
         return self.app.exec()
 
 

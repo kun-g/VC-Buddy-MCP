@@ -1,5 +1,6 @@
 # TODO展示
 
+## TODO 是树形结构，支持折叠（可以使用 QTreeWidget 控件）
 ## 已完成的TODO，菜单多一个「删除」
 state=done
 
