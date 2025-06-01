@@ -28,7 +28,8 @@ VC-Buddy-MCP/
 │       └── test_todo_parser.py    # TODO 解析器单元测试 ⭐ 新增
 ├── docs/                           # 文档目录
 │   ├── ProjectStructure.md        # 项目结构文档
-│   └── README_CONFIG.md           # 配置管理文档
+│   ├── README_CONFIG.md           # 配置管理文档
+│   └── prd.md                     # 产品需求文档 ⭐ 新增
 ├── test_qml_answerbox.py          # QML Answer Box 测试脚本 ⭐ 新增
 ├── test_qml_interactive.py       # QML 交互式测试脚本 ⭐ 新增
 ├── pyproject.toml                  # uv 项目配置 ⭐ 已更新依赖

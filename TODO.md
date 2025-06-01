@@ -1,12 +1,14 @@
 # TODO展示
 
 ## TODO 是树形结构，支持折叠（可以使用 QTreeWidget 控件）
+
 ## 已完成的TODO，菜单多一个「删除」
 state=done
 
 # 文档维护
 
 ## 扫描整个代码库，生成PRD文档 (docs/prd.md)
+state=done
 
 # 优化answer_box.py
 
@@ -15,20 +17,6 @@ state=done
 
 ## 增加录音按钮和功能，参考 answer_box.py
 state=done
-
-## 引入QML
-state=done
-
-使用 QML 拆分逻辑和布局
-如果需要，可以参考：
-https://doc.qt.io/qtforpython-6/tutorials/qmlapp/qmlapplication.html
-
-## 引入.qss
-state=done
-
-引入 .qss 拆分样式和布局
-如果需要可以参考：
-https://doc.qt.io/qt-6/stylesheet.html
 
 # 初始化引导
 引导设置 Cursor User Rules
