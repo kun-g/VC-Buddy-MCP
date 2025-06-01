@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from PySide6.QtWidgets import (QApplication, QPushButton, QDialog, QLabel, 
                                QVBoxLayout, QTextEdit, QTreeWidget, QTreeWidgetItem,
-                               QHBoxLayout, QSplitter, QTextBrowser)
+                               QHBoxLayout, QSplitter, QTextBrowser, QCheckBox)
 from PySide6.QtCore import QSettings, Qt
 from PySide6.QtGui import QKeySequence, QShortcut
 
@@ -178,6 +178,10 @@ class AnswerBox(QDialog):
             self.layout.addWidget(splitter)
         else:
             # 没有TODO时，只显示输入区域
+            input_label = QLabel("💬 反馈内容:")
+            input_label.setStyleSheet("font-weight: bold; color: #333; margin-bottom: 4px;")
+            self.layout.addWidget(input_label)
+            
             self.input = QTextEdit()
             self.input.setStyleSheet("""
                 QTextEdit {
@@ -188,6 +192,32 @@ class AnswerBox(QDialog):
                 }
             """)
             self.layout.addWidget(self.input)
+            
+            # Commit复选框
+            self.commit_checkbox = QCheckBox("📝 Commit - 要求先提交修改的文件")
+            self.commit_checkbox.setStyleSheet("""
+                QCheckBox {
+                    font-size: 11px;
+                    color: #666;
+                    margin-top: 8px;
+                }
+                QCheckBox::indicator {
+                    width: 16px;
+                    height: 16px;
+                }
+                QCheckBox::indicator:unchecked {
+                    border: 2px solid #ccc;
+                    border-radius: 3px;
+                    background-color: white;
+                }
+                QCheckBox::indicator:checked {
+                    border: 2px solid #2196f3;
+                    border-radius: 3px;
+                    background-color: #2196f3;
+                    image: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iMTIiIHZpZXdCb3g9IjAgMCAxMiAxMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEwIDNMNC41IDguNUwyIDYiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+Cjwvc3ZnPgo=);
+                }
+            """)
+            self.layout.addWidget(self.commit_checkbox)
         
         # 发送按钮
         self.button = QPushButton("📤 Send (Ctrl+Enter)")
@@ -261,6 +291,32 @@ class AnswerBox(QDialog):
         """)
         layout.addWidget(self.input)
         
+        # Commit复选框
+        self.commit_checkbox = QCheckBox("📝 Commit - 要求先提交修改的文件")
+        self.commit_checkbox.setStyleSheet("""
+            QCheckBox {
+                font-size: 11px;
+                color: #666;
+                margin-top: 8px;
+            }
+            QCheckBox::indicator {
+                width: 16px;
+                height: 16px;
+            }
+            QCheckBox::indicator:unchecked {
+                border: 2px solid #ccc;
+                border-radius: 3px;
+                background-color: white;
+            }
+            QCheckBox::indicator:checked {
+                border: 2px solid #2196f3;
+                border-radius: 3px;
+                background-color: #2196f3;
+                image: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iMTIiIHZpZXdCb3g9IjAgMCAxMiAxMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEwIDNMNC41IDguNUwyIDYiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+Cjwvc3ZnPgo=);
+            }
+        """)
+        layout.addWidget(self.commit_checkbox)
+        
         widget.setLayout(layout)
         return widget
 
@@ -323,8 +379,17 @@ class AnswerBox(QDialog):
             self.input.setFocus()
 
     def respond(self):
+        # 获取用户输入的反馈内容
+        feedback_text = self.input.toPlainText()
+        
+        # 检查是否勾选了Commit复选框
+        if hasattr(self, 'commit_checkbox') and self.commit_checkbox.isChecked():
+            # 在反馈前添加commit提示
+            commit_prefix = "请 commit 你修改的文件，按规范撰写 commit 信息\n\n接下来实现：\n"
+            feedback_text = commit_prefix + feedback_text
+        
         response = {
-            "result": f"{self.input.toPlainText()}"
+            "result": feedback_text
         }
         # 如果有项目目录，也包含在响应中
         if self.project_directory:
