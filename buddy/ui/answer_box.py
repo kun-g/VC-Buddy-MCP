@@ -468,9 +468,7 @@ class AnswerBox(QDialog):
             if todo_file:
                 # 保存更新后的TODO列表
                 success = parser.save_todos_to_file(self.todo_items, todo_file)
-                if success:
-                    print(f"✅ TODO列表已保存到: {todo_file}")
-                else:
+                if not success:
                     QMessageBox.warning(self, "保存失败", "无法保存TODO文件，请检查文件权限。")
             else:
                 QMessageBox.warning(self, "文件未找到", "在项目目录中未找到TODO.md文件。")

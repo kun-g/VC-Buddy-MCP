@@ -1,21 +1,25 @@
 # TODO展示
+
 ## TODO支持属性
 state=done
+
 TODO 支持属性， 紧接着标题的赋值预计， 例如：
 state=going
 abc=123
 
 ## 完成的任务加个✅
-完成的任务加个✅在前面(state=done 的)
+state=done
 
 ## TODO没有内容时，就替换标题
 state=done
+
 TODO没有内容时， 双击时就插入标题
 
 ## 在 TODO 列表里右键完成的任务，在 TODO.md里这条前面加上✅
-
+state=done
 
 # 优化answer_box.py
+
 ### Style Sheet 模块
 实现一个 Style Sheet 模块，
 
@@ -33,4 +37,5 @@ https://doc.qt.io/qt-6/stylesheet.html
 引导设置 Cursor User Rules
 
 # 单元测试
+
 ## 给 todo_parser.py 实现单元测试
