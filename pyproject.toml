@@ -1,0 +1,109 @@
+[project]
+name = "vibe-coding-buddy"
+version = "0.1.0"
+description = "A Desktop Coding Assistant with MCP Support"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+    { name = "Vibe Coding Team", email = "team@vibecoding.com" }
+]
+keywords = ["coding", "assistant", "mcp", "desktop", "pyside6"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "PySide6>=6.6.0",
+    "fastmcp>=2.5.2",
+    "pyaudio>=0.2.11",
+    "qasync>=0.24.0",
+    "httpx>=0.25.0",
+    "openai>=1.0.0",
+    "anthropic>=0.8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "mypy>=1.6.0",
+    "ruff>=0.1.0",
+]
+
+[project.scripts]
+buddy = "buddy.ui.main:main"
+buddy-mcp-stdio = "buddy.server.stdio_runner:main"
+buddy-mcp     = "buddy.server.run_fastmcp:main"
+buddy-fastmcp = "buddy.server.run_fastmcp:main"
+buddy-test-fastmcp = "buddy.client.test_fastmcp_client:main"
+# uv run fastmcp dev --server-port 6288 --ui-port 6289 buddy/server/run_fastmcp.py
+
+[dependency-groups]
+# 开发依赖
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "mypy>=1.6.0",
+    "ruff>=0.1.0",
+]
+
+# 测试工具
+test = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+]
+
+# 代码质量工具
+lint = [
+    "ruff>=0.1.0",
+    "mypy>=1.6.0",
+]
+
+# 格式化工具
+format = [
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "ruff>=0.1.0",
+]
+
+[tool.uv]
+# 开发依赖组
+dev-dependencies = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "mypy>=1.6.0",
+    "ruff>=0.1.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["buddy"]
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.ruff]
+line-length = 88
+target-version = "py311" 
