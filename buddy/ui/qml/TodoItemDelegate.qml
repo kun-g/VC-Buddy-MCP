@@ -1,13 +1,14 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import Qt5Compat.GraphicalEffects
 import "."
 
 Item {
     id: root
     height: contentColumn.height + Theme.spacing.normal
     
-    property var todoItem: modelData.todoItem
+    property var todoItem: null
     property int indentLevel: todoItem ? todoItem.level - 1 : 0
     
     signal itemClicked()
@@ -15,7 +16,106 @@ Item {
     signal markDone()
     signal markUndone()
     
+    // 右键菜单 - 使用 Popup 替代 Menu
+    Popup {
+        id: contextMenu
+        width: 160
+        height: menuColumn.height + 16
+        padding: 8
+        
+        background: Rectangle {
+            color: Theme.colors.background
+            border.color: Theme.colors.border
+            border.width: 1
+            radius: Theme.radius.normal
+            
+            // 添加阴影效果
+            layer.enabled: true
+            layer.effect: DropShadow {
+                horizontalOffset: 0
+                verticalOffset: 2
+                radius: 8
+                samples: 16
+                color: "#20000000"
+            }
+        }
+        
+        Column {
+            id: menuColumn
+            width: parent.width - 16
+            spacing: 2
+            
+            Rectangle {
+                width: parent.width
+                height: 24
+                color: insertMouseArea.containsMouse ? Theme.colors.hover : "transparent"
+                radius: Theme.radius.small
+                
+                Text {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 8
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "📝 插入内容"
+                    font.pixelSize: Theme.fonts.small
+                    font.family: Theme.fonts.family
+                    color: Theme.colors.text
+                }
+                
+                MouseArea {
+                    id: insertMouseArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: {
+                        console.log("DEBUG: 插入内容菜单项被触发")
+                        contextMenu.close()
+                        root.itemDoubleClicked()
+                    }
+                }
+            }
+            
+            Rectangle {
+                width: parent.width
+                height: 1
+                color: Theme.colors.border
+                opacity: 0.5
+            }
+            
+            Rectangle {
+                width: parent.width
+                height: 24
+                color: markMouseArea.containsMouse ? Theme.colors.hover : "transparent"
+                radius: Theme.radius.small
+                
+                Text {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 8
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: todoItem && todoItem.is_done ? "❌ 标记未完成" : "✅ 标记完成"
+                    font.pixelSize: Theme.fonts.small
+                    font.family: Theme.fonts.family
+                    color: Theme.colors.text
+                }
+                
+                MouseArea {
+                    id: markMouseArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: {
+                        console.log("DEBUG: 菜单项被触发，当前状态:", todoItem ? todoItem.is_done : "无数据")
+                        contextMenu.close()
+                        if (todoItem && todoItem.is_done) {
+                            root.markUndone()
+                        } else {
+                            root.markDone()
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
     Rectangle {
+        id: backgroundRect
         anchors.fill: parent
         color: mouseArea.containsMouse ? Theme.colors.hover : "transparent"
         border.color: Theme.colors.borderLight
@@ -28,7 +128,7 @@ Item {
                 name: "completed"
                 when: todoItem && todoItem.is_done
                 PropertyChanges {
-                    target: root.children[0]  // Rectangle 组件
+                    target: backgroundRect
                     color: Theme.colors.todoCompleted
                     border.color: Theme.colors.todoCompletedBorder
                 }
@@ -52,41 +152,13 @@ Item {
                 if (mouse.button === Qt.LeftButton) {
                     root.itemClicked()
                 } else if (mouse.button === Qt.RightButton) {
-                    contextMenu.popup()
+                    console.log("DEBUG: 右键点击 TODO 项目，准备弹出菜单")
+                    contextMenu.x = mouse.x
+                    contextMenu.y = mouse.y
+                    contextMenu.open()
                 }
             }
             onDoubleClicked: root.itemDoubleClicked()
-        }
-        
-        // 右键菜单
-        Menu {
-            id: contextMenu
-            
-            background: Rectangle {
-                color: Theme.colors.background
-                border.color: Theme.colors.border
-                border.width: 1
-                radius: Theme.radius.normal
-            }
-            
-            MenuItem {
-                text: todoItem && todoItem.is_done ? "❌ 标记为未完成" : "✅ 标记为完成"
-                font.pixelSize: Theme.fonts.small
-                font.family: Theme.fonts.family
-                
-                background: Rectangle {
-                    color: parent.hovered ? Theme.colors.hover : "transparent"
-                    radius: Theme.radius.small
-                }
-                
-                onTriggered: {
-                    if (todoItem && todoItem.is_done) {
-                        root.markUndone()
-                    } else {
-                        root.markDone()
-                    }
-                }
-            }
         }
         
         ColumnLayout {
