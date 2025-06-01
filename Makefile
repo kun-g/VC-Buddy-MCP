@@ -19,7 +19,7 @@ show-ui: install
 	uv run buddy/client/test.py
 
 show-ui-qml: install
-	@echo '{"summary": "测试QML版本界面", "project_directory": "'$(PWD)'"}' | uv run buddy/ui/run_qml.py
+	@echo '{"summary": "测试QML版本界面", "project_directory": "'$(PWD)'"}' | uv run buddy/ui/answer_box_qml.py
 
 test-qml: install
 	@echo '{"summary": "这是一个测试摘要，用于验证QML界面的功能。包含TODO解析、属性显示、双击插入等功能。", "project_directory": "'$(PWD)'"}' | uv run buddy/ui/run_qml.py

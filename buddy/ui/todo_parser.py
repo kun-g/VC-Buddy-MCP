@@ -112,19 +112,36 @@ class TodoParser:
                 attributes = {}
                 j = i + 1
                 attribute_lines = []
+                content_started = False
                 
-                # 收集紧跟标题的属性行（直到遇到空行、下一个标题或内容）
+                # 收集属性行（跳过内容行，直到遇到下一个标题）
                 while j < len(lines):
                     next_line = lines[j].strip()
-                    if not next_line:  # 空行，停止收集属性
-                        break
+                    if not next_line:  # 空行，跳过但不停止
+                        j += 1
+                        continue
                     if re.match(r'^#{1,6}\s+', next_line):  # 下一个标题，停止收集
                         break
+                    
+                    # 检查是否是属性行
                     if '=' in next_line and not next_line.startswith('#'):
-                        attribute_lines.append(lines[j])
-                        j += 1
+                        # 如果已经开始收集内容，但又遇到属性行，则这些属性行应该被忽略
+                        # 只有在还没有收集到大量内容的情况下才认为是属性
+                        if not content_started:
+                            attribute_lines.append(lines[j])
                     else:
-                        break
+                        # 非属性行，标记内容开始
+                        # 但我们允许在开始的几行内容中穿插属性
+                        if not content_started and len(attribute_lines) == 0:
+                            # 如果还没有找到任何属性，继续寻找
+                            pass
+                        else:
+                            content_started = True
+                            # 如果已经找到一些属性，遇到内容行就停止
+                            if attribute_lines:
+                                break
+                    
+                    j += 1
                 
                 # 解析属性
                 if attribute_lines:
