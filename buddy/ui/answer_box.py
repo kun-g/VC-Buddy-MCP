@@ -123,6 +123,7 @@ class AnswerBox(QDialog):
             self.todo_tree = QTreeWidget()
             self.todo_tree.setHeaderLabel("TODO 任务")
             self.todo_tree.itemClicked.connect(self._on_todo_item_clicked)
+            self.todo_tree.itemDoubleClicked.connect(self._on_todo_item_double_clicked)
             self._populate_todo_tree()
             splitter.addWidget(self.todo_tree)
             
@@ -203,6 +204,30 @@ class AnswerBox(QDialog):
                 detail_text += "<p><i>无详细说明</i></p>"
             
             self.todo_detail.setHtml(detail_text)
+
+    def _on_todo_item_double_clicked(self, item: QTreeWidgetItem, column: int):
+        """处理TODO项目双击事件 - 插入说明到输入框"""
+        todo_item = item.data(0, Qt.UserRole)
+        if todo_item and hasattr(self, 'input'):
+            # 获取当前输入框内容
+            current_text = self.input.toPlainText()
+            
+            # 准备要插入的内容
+            insert_text = ""
+            if todo_item.content:
+                insert_text = todo_item.content
+            else:
+                insert_text = f"关于任务: {todo_item.title}"
+            
+            # 如果输入框不为空，添加换行
+            if current_text.strip():
+                insert_text = "\n\n" + insert_text
+            
+            # 插入内容到输入框
+            self.input.append(insert_text)
+            
+            # 将焦点设置到输入框
+            self.input.setFocus()
 
     def respond(self):
         response = {
