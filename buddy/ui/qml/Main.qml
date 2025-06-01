@@ -199,42 +199,66 @@ ApplicationWindow {
                         Layout.fillHeight: true
                         spacing: Theme.spacing.small
                         
-                        Text {
-                            text: "💬 反馈内容:"
-                            font.bold: true
-                            font.pixelSize: Theme.fonts.medium
-                            font.family: Theme.fonts.family
-                            color: Theme.colors.text
-                        }
-                        
-                        ScrollView {
+                        // 输入框容器
+                        Rectangle {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
+                            color: Theme.colors.background
+                            border.color: Theme.colors.border
+                            border.width: 1
+                            radius: Theme.radius.normal
                             clip: true  // 防止内容溢出边界
                             
-                            TextArea {
-                                id: inputArea
-                                placeholderText: "请输入您的反馈..."
-                                wrapMode: TextArea.Wrap
+                            ScrollView {
+                                anchors.fill: parent
+                                anchors.margins: 2  // 给边框留出空间
+                                clip: true
+                                
+                                TextArea {
+                                    id: inputArea
+                                    wrapMode: TextArea.Wrap
+                                    font.pixelSize: Theme.fonts.normal
+                                    font.family: Theme.fonts.family
+                                    selectByMouse: true
+                                    color: Theme.colors.text
+                                    
+                                    // 设置内部边距，确保文本位置与占位符对齐
+                                    leftPadding: 12
+                                    topPadding: 12
+                                    rightPadding: 12
+                                    bottomPadding: 12
+                                    
+                                    // 移除内置的背景，使用外层Rectangle作为背景
+                                    background: Item {}
+                                    
+                                    // Ctrl+Enter快捷键
+                                    Keys.onPressed: function(event) {
+                                        if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && 
+                                            (event.modifiers & Qt.ControlModifier)) {
+                                            sendButton.clicked()
+                                            event.accepted = true
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // 自定义占位符文本
+                            Text {
+                                anchors.left: parent.left
+                                anchors.top: parent.top
+                                anchors.leftMargin: 12  // 与TextArea内部文本对齐
+                                anchors.topMargin: 12   // 与TextArea内部文本对齐
+                                text: "请输入您的反馈..."
                                 font.pixelSize: Theme.fonts.normal
                                 font.family: Theme.fonts.family
-                                selectByMouse: true
-                                color: Theme.colors.text
+                                color: Theme.colors.textSecondary
+                                opacity: 0.6
+                                visible: inputArea.text.length === 0 && !inputArea.activeFocus
                                 
-                                background: Rectangle {
-                                    color: Theme.colors.background
-                                    border.color: Theme.colors.border
-                                    border.width: 1
-                                    radius: Theme.radius.normal
-                                }
-                                
-                                // Ctrl+Enter快捷键
-                                Keys.onPressed: function(event) {
-                                    if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && 
-                                        (event.modifiers & Qt.ControlModifier)) {
-                                        sendButton.clicked()
-                                        event.accepted = true
-                                    }
+                                // 点击占位符文本时聚焦到输入框
+                                MouseArea {
+                                    anchors.fill: parent
+                                    onClicked: inputArea.forceActiveFocus()
                                 }
                             }
                         }
@@ -284,7 +308,7 @@ ApplicationWindow {
                                 
                                 var feedbackText = inputArea.text
                                 if (commitCheckbox.checked) {
-                                    feedbackText = "请 commit 你修改的文件，按规范撰写 commit 信息\n\n接下来实现：\n" + feedbackText
+                                    feedbackText = "请 commit 你刚才修改的文件，按规范撰写 commit 信息。\n\n接下来实现：\n" + feedbackText
                                     // 发送后自动取消Commit复选框的选中状态
                                     commitCheckbox.checked = false
                                 }

@@ -1,11 +1,8 @@
 # TODO展示
+## 已完成的TODO，菜单多一个「删除」
 
-## TODO支持属性
-state=done
-
-TODO 支持属性， 紧接着标题的赋值预计， 例如：
-state=going
-abc=123
+# 文档维护
+## 扫描整个代码库，生成PRD文档 (docs/prd.md)
 
 # 优化answer_box.py
 
@@ -14,13 +11,18 @@ abc=123
 ## 增加录音按钮和功能，参考 answer_box.py
 
 ## 引入QML
+state=done
+
 使用 QML 拆分逻辑和布局
 如果需要，可以参考：
 https://doc.qt.io/qtforpython-6/tutorials/qmlapp/qmlapplication.html
 
 ## style.qss 移动到 qml 目录里吧
+state=done
 
 ## 引入.qss
+state=done
+
 引入 .qss 拆分样式和布局
 如果需要可以参考：
 https://doc.qt.io/qt-6/stylesheet.html

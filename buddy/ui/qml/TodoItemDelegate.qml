@@ -49,41 +49,6 @@ Item {
             Rectangle {
                 width: parent.width
                 height: 24
-                color: insertMouseArea.containsMouse ? Theme.colors.hover : "transparent"
-                radius: Theme.radius.small
-                
-                Text {
-                    anchors.left: parent.left
-                    anchors.leftMargin: 8
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: "📝 插入内容"
-                    font.pixelSize: Theme.fonts.small
-                    font.family: Theme.fonts.family
-                    color: Theme.colors.text
-                }
-                
-                MouseArea {
-                    id: insertMouseArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    onClicked: {
-                        console.log("DEBUG: 插入内容菜单项被触发")
-                        contextMenu.close()
-                        root.itemDoubleClicked()
-                    }
-                }
-            }
-            
-            Rectangle {
-                width: parent.width
-                height: 1
-                color: Theme.colors.border
-                opacity: 0.5
-            }
-            
-            Rectangle {
-                width: parent.width
-                height: 24
                 color: markMouseArea.containsMouse ? Theme.colors.hover : "transparent"
                 radius: Theme.radius.small
                 
