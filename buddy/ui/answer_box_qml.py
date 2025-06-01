@@ -224,27 +224,18 @@ class AnswerBoxBackend(QObject):
     @Slot(int)
     def selectTodoItem(self, index: int):
         """选择TODO项目"""
-        print(f"DEBUG: 选择TODO项目 {index}", file=sys.stderr)
         todo_item = self._todo_model.getTodoItem(index)
         if todo_item:
             detail_text = f"<h3>{todo_item.display_title}</h3>"
             
-            # 显示属性
-            if todo_item.attributes:
-                detail_text += "<p><strong>属性:</strong></p><ul>"
-                for key, value in todo_item.attributes.items():
-                    detail_text += f"<li><strong>{key}:</strong> {value}</li>"
-                detail_text += "</ul>"
-            
             # 显示内容
             if todo_item.content:
-                detail_text += f"<p><strong>详情:</strong></p><p>{todo_item.content.replace(chr(10), '<br>')}</p>"
+                detail_text += f"{todo_item.content.replace(chr(10), '<br>')}</p>"
             else:
                 detail_text += "<p><i>无详细说明</i></p>"
             
             self._selected_todo_detail = detail_text
             self.selectedTodoDetailChanged.emit()
-            print(f"DEBUG: 更新TODO详情", file=sys.stderr)
     
     @Slot(int)
     def insertTodoContent(self, index: int):

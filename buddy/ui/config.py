@@ -90,8 +90,8 @@ class ConfigManager:
             },
             "ui": {
                 "window": {
-                    "default_width": 300,
-                    "default_height": 200,
+                    "default_width": 623,
+                    "default_height": 631,
                     "remember_position": True,
                     "stay_on_top": True
                 }

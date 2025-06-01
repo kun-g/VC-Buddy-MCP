@@ -23,8 +23,8 @@ class StyleManager(QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
         
-        # 获取样式文件目录
-        self._styles_dir = Path(__file__).parent
+        # 获取样式文件目录 - 更新到qml子目录
+        self._styles_dir = Path(__file__).parent / "qml"
         self._current_theme = "default"
         self._loaded_styles = {}
         

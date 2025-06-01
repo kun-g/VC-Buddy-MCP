@@ -14,11 +14,11 @@ VC-Buddy-MCP/
 │   │   ├── answer_box.py          # Answer Box 传统界面 ⭐ 已优化
 │   │   ├── answer_box_qml.py      # Answer Box QML版本 ⭐ 新增
 │   │   ├── style_manager.py       # 样式管理器 ⭐ 新增
-│   │   ├── styles.qss             # QSS 样式文件 ⭐ 新增
 │   │   ├── qml/                   # QML 界面文件 ⭐ 新增
 │   │   │   ├── Main.qml           # 主界面 QML ⭐ 使用主题系统
 │   │   │   ├── TodoItemDelegate.qml # TODO 项目组件 ⭐ 使用主题系统
 │   │   │   ├── Theme.qml          # QML 主题定义 ⭐ 新增
+│   │   │   ├── styles.qss         # QSS 样式文件 ⭐ 移动到qml目录
 │   │   │   └── qmldir             # QML 模块配置 ⭐ 已更新
 │   │   ├── config.py              # 配置管理
 │   │   ├── todo_parser.py         # TODO 解析器 ⭐ 已完善
@@ -95,7 +95,7 @@ VC-Buddy-MCP/
 - 添加 requests>=2.31.0 (HTTP 请求)
 
 ### 样式系统重构 ⭐ 新增
-- **styles.qss**: 完整的 QSS 样式文件
+- **styles.qss**: 完整的 QSS 样式文件（位于qml目录）
   - Material Design 颜色方案
   - 完整的控件样式定义
   - 支持按钮、输入框、列表、滚动条等组件

@@ -18,6 +18,8 @@ abc=123
 如果需要，可以参考：
 https://doc.qt.io/qtforpython-6/tutorials/qmlapp/qmlapplication.html
 
+## style.qss 移动到 qml 目录里吧
+
 ## 引入.qss
 引入 .qss 拆分样式和布局
 如果需要可以参考：
