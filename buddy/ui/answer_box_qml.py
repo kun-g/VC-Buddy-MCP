@@ -13,6 +13,7 @@ try:
     from .config import config_manager, get_project_config_manager
     from .todo_parser import TodoParser, TodoItem
     from .style_manager import StyleManager, load_default_styles
+    from .voice_recorder import VoiceRecorder
 except ImportError:
     # 如果作为脚本直接运行，需要添加路径
     current_dir = Path(__file__).parent
@@ -20,6 +21,7 @@ except ImportError:
     from config import config_manager, get_project_config_manager
     from todo_parser import TodoParser, TodoItem
     from style_manager import StyleManager, load_default_styles
+    from voice_recorder import VoiceRecorder
 
 
 class TodoListModel(QAbstractListModel):
@@ -80,6 +82,9 @@ class AnswerBoxBackend(QObject):
     responseReady = Signal(str, arguments=['response'])
     selectedTodoDetailChanged = Signal()
     windowGeometryChanged = Signal()
+    voiceTranscriptionReady = Signal(str, arguments=['transcription'])
+    voiceRecordingStateChanged = Signal(bool, arguments=['isRecording'])
+    voiceErrorOccurred = Signal(str, arguments=['errorMessage'])
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -150,6 +155,16 @@ class AnswerBoxBackend(QObject):
         # 选中的TODO详情
         self._selected_todo_detail = "选择一个任务查看详情"
         self._selected_todo_title = None
+        
+        # 初始化录音器
+        self._voice_recorder = VoiceRecorder()
+        self._is_recording = False
+        
+        # 连接录音器信号
+        self._voice_recorder.recording_started.connect(self._on_recording_started)
+        self._voice_recorder.recording_stopped.connect(self._on_recording_stopped)
+        self._voice_recorder.transcription_ready.connect(self._on_transcription_ready)
+        self._voice_recorder.error_occurred.connect(self._on_voice_error)
         
         # 调试信息
         print(f"DEBUG: 加载了 {len(self._todo_items)} 个TODO项目", file=sys.stderr)
@@ -224,6 +239,60 @@ class AnswerBoxBackend(QObject):
         if not self.rememberPosition:
             return self.defaultHeight
         return self._settings.value("window/height", self.defaultHeight, type=int)
+    
+    @Property(bool, constant=True)
+    def hasValidSavedGeometry(self):
+        """检查是否有有效的保存几何信息"""
+        if not self.rememberPosition:
+            return False
+        
+        x = self.savedX
+        y = self.savedY
+        width = self.savedWidth
+        height = self.savedHeight
+        
+        # 检查坐标是否有效（不为-1且在合理范围内）
+        return (x >= 0 and y >= 0 and 
+                width >= 200 and height >= 150 and
+                width <= 3000 and height <= 2000)
+    
+    @Property(bool, notify=voiceRecordingStateChanged)
+    def isRecording(self):
+        """录音状态属性"""
+        return self._is_recording
+    
+    # 录音相关的槽函数
+    @Slot()
+    def toggleRecording(self):
+        """切换录音状态"""
+        if self._is_recording:
+            self._voice_recorder.stop_recording()
+        else:
+            self._voice_recorder.start_recording()
+    
+    def _on_recording_started(self):
+        """录音开始时的处理"""
+        self._is_recording = True
+        self.voiceRecordingStateChanged.emit(True)
+        print("DEBUG: 录音开始", file=sys.stderr)
+    
+    def _on_recording_stopped(self):
+        """录音停止时的处理"""
+        self._is_recording = False
+        self.voiceRecordingStateChanged.emit(False)
+        print("DEBUG: 录音停止", file=sys.stderr)
+    
+    def _on_transcription_ready(self, transcription: str):
+        """转写完成时的处理"""
+        print(f"DEBUG: 语音转写完成: {transcription[:50]}...", file=sys.stderr)
+        self.voiceTranscriptionReady.emit(transcription)
+    
+    def _on_voice_error(self, error_message: str):
+        """语音错误处理"""
+        print(f"ERROR: 语音功能错误: {error_message}", file=sys.stderr)
+        self._is_recording = False
+        self.voiceRecordingStateChanged.emit(False)
+        self.voiceErrorOccurred.emit(error_message)
     
     # 槽函数定义
     @Slot(int)
@@ -337,8 +406,6 @@ class AnswerBoxBackend(QObject):
     @Slot(str)
     def sendResponse(self, feedback_text: str):
         """发送响应"""
-        print(f"DEBUG: 准备发送响应: {feedback_text[:100]}...", file=sys.stderr)
-        
         try:
             response = {
                 "result": feedback_text
@@ -349,13 +416,10 @@ class AnswerBoxBackend(QObject):
             print(output)  # 使用 print 而不是 sys.stdout.write
             sys.stdout.flush()
             
-            print(f"DEBUG: 响应已发送到标准输出", file=sys.stderr)
-            
             # 延迟退出，确保输出完成
             QGuiApplication.instance().quit()
             
         except Exception as e:
-            print(f"ERROR: 发送响应时出错: {e}", file=sys.stderr)
             QGuiApplication.instance().quit()
     
     @Slot(int, int, int, int)
@@ -373,23 +437,6 @@ class AnswerBoxBackend(QObject):
         self._settings.sync()
         
         self.windowGeometryChanged.emit()
-    
-    @Slot(result=bool)
-    def hasValidSavedGeometry(self):
-        """检查是否有有效的保存几何信息"""
-        if not self.rememberPosition:
-            return False
-        
-        x = self.savedX
-        y = self.savedY
-        width = self.savedWidth
-        height = self.savedHeight
-        
-        # 检查坐标是否有效（不为-1且在合理范围内）
-        return (x >= 0 and y >= 0 and 
-                width >= 200 and height >= 150 and
-                width <= 3000 and height <= 2000)
-
 
 class AnswerBoxQML:
     """QML版本的AnswerBox应用"""
@@ -405,7 +452,6 @@ class AnswerBoxQML:
         self.style_manager = StyleManager()
         
         # 加载默认 QSS 样式
-        print("DEBUG: 加载 QSS 样式", file=sys.stderr)
         style_loaded = load_default_styles()
         if style_loaded:
             print("DEBUG: QSS 样式加载成功", file=sys.stderr)

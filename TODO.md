@@ -13,6 +13,7 @@ state=done
 state=done
 
 ## 增加录音按钮和功能，参考 answer_box.py
+state=done
 
 ## 引入QML
 state=done

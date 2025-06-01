@@ -44,11 +44,13 @@ VC-Buddy-MCP/
   - TodoListModel: TODO 列表数据模型
   - 完整的信号槽系统和属性绑定
   - Material Design 样式主题
+  - 集成语音录制和转写功能 ⭐ 新增
 - **Main.qml**: 主界面布局
   - 响应式分割布局
   - TODO 列表和详情显示
   - 输入区域和发送按钮
   - Commit 复选框功能
+  - 语音录制按钮和功能 ⭐ 新增
 - **TodoItemDelegate.qml**: TODO 项目组件
   - 层级缩进显示
   - 右键菜单操作

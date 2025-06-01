@@ -274,6 +274,50 @@ ApplicationWindow {
                             font.family: Theme.fonts.family
                         }
                         
+                        // 录音按钮
+                        Button {
+                            id: voiceButton
+                            Layout.fillWidth: true
+                            text: backend && backend.isRecording ? "⏹️ 停止录音" : "🎤 录音"
+                            font.bold: true
+                            font.pixelSize: Theme.fonts.normal
+                            font.family: Theme.fonts.family
+                            
+                            background: Rectangle {
+                                color: {
+                                    if (backend && backend.isRecording) {
+                                        return voiceButton.pressed ? "#d32f2f" : 
+                                               voiceButton.hovered ? "#d32f2f" : "#f44336"
+                                    } else {
+                                        return voiceButton.pressed ? "#388e3c" : 
+                                               voiceButton.hovered ? "#388e3c" : "#4caf50"
+                                    }
+                                }
+                                radius: Theme.radius.normal
+                                
+                                Behavior on color {
+                                    ColorAnimation {
+                                        duration: Theme.animation.fast
+                                        easing.type: Easing.OutQuad
+                                    }
+                                }
+                            }
+                            
+                            contentItem: Text {
+                                text: voiceButton.text
+                                font: voiceButton.font
+                                opacity: enabled ? 1.0 : 0.3
+                                color: Theme.colors.textOnPrimary
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                                elide: Text.ElideRight
+                            }
+                            
+                            onClicked: {
+                                if (backend) backend.toggleRecording()
+                            }
+                        }
+                        
                         // 发送按钮
                         Button {
                             id: sendButton
@@ -311,7 +355,7 @@ ApplicationWindow {
                                 
                                 var feedbackText = inputArea.text
                                 if (commitCheckbox.checked) {
-                                    feedbackText = "请 commit 你刚才修改的文件，按规范撰写 commit 信息。\n\n接下来实现：\n" + feedbackText
+                                    feedbackText = "请只 commit 你刚才修改的文件，按规范撰写 commit 信息。\n\n接下来实现：\n" + feedbackText
                                     // 发送后自动取消Commit复选框的选中状态
                                     commitCheckbox.checked = false
                                 }
@@ -335,6 +379,22 @@ ApplicationWindow {
                 inputArea.text = content
             }
             inputArea.forceActiveFocus()
+        }
+        
+        function onVoiceTranscriptionReady(transcription) {
+            if (transcription.trim() !== "") {
+                if (inputArea.text.trim() !== "") {
+                    inputArea.text += "\n\n" + transcription
+                } else {
+                    inputArea.text = transcription
+                }
+                inputArea.forceActiveFocus()
+            }
+        }
+        
+        function onVoiceErrorOccurred(errorMessage) {
+            console.log("语音错误:", errorMessage)
+            // 可以在这里添加错误提示UI
         }
     }
     
