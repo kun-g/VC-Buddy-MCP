@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from typing import List, Optional
 
-from PySide6.QtCore import QObject, Signal, Slot, Property, QAbstractListModel, QModelIndex, Qt
+from PySide6.QtCore import QObject, Signal, Slot, Property, QAbstractListModel, QModelIndex, Qt, QSettings
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine, qmlRegisterType
 
@@ -79,6 +79,7 @@ class AnswerBoxBackend(QObject):
     todoContentInserted = Signal(str, arguments=['content'])
     responseReady = Signal(str, arguments=['response'])
     selectedTodoDetailChanged = Signal()
+    windowGeometryChanged = Signal()
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -130,6 +131,12 @@ class AnswerBoxBackend(QObject):
             self._config_mgr = config_manager
             self._window_title = "Answer Box"
         
+        # 创建设置管理器（用于保存窗口几何信息）
+        self._settings = QSettings(
+            self._config_mgr.organization_name,
+            self._config_mgr.application_name
+        )
+        
         # 加载TODO数据
         self._todo_parser = TodoParser()
         self._todo_items = []
@@ -179,6 +186,39 @@ class AnswerBoxBackend(QObject):
     @Property(str, notify=selectedTodoDetailChanged)
     def selectedTodoDetail(self):
         return self._selected_todo_detail
+    
+    @Property(bool, constant=True)
+    def rememberPosition(self):
+        """是否记住窗口位置"""
+        return self._config_mgr.get("ui.window.remember_position", True)
+    
+    @Property(int, notify=windowGeometryChanged)
+    def savedX(self):
+        """保存的窗口X坐标"""
+        if not self.rememberPosition:
+            return -1
+        return self._settings.value("window/x", -1, type=int)
+    
+    @Property(int, notify=windowGeometryChanged)
+    def savedY(self):
+        """保存的窗口Y坐标"""
+        if not self.rememberPosition:
+            return -1
+        return self._settings.value("window/y", -1, type=int)
+    
+    @Property(int, notify=windowGeometryChanged)
+    def savedWidth(self):
+        """保存的窗口宽度"""
+        if not self.rememberPosition:
+            return self.defaultWidth
+        return self._settings.value("window/width", self.defaultWidth, type=int)
+    
+    @Property(int, notify=windowGeometryChanged)
+    def savedHeight(self):
+        """保存的窗口高度"""
+        if not self.rememberPosition:
+            return self.defaultHeight
+        return self._settings.value("window/height", self.defaultHeight, type=int)
     
     # 槽函数定义
     @Slot(int)
@@ -286,6 +326,38 @@ class AnswerBoxBackend(QObject):
         except Exception as e:
             print(f"ERROR: 发送响应时出错: {e}", file=sys.stderr)
             QGuiApplication.instance().quit()
+    
+    @Slot(int, int, int, int)
+    def saveWindowGeometry(self, x: int, y: int, width: int, height: int):
+        """保存窗口几何信息"""
+        if not self.rememberPosition:
+            return
+        
+        print(f"DEBUG: 保存窗口几何信息: x={x}, y={y}, width={width}, height={height}", file=sys.stderr)
+        
+        self._settings.setValue("window/x", x)
+        self._settings.setValue("window/y", y)
+        self._settings.setValue("window/width", width)
+        self._settings.setValue("window/height", height)
+        self._settings.sync()
+        
+        self.windowGeometryChanged.emit()
+    
+    @Slot(result=bool)
+    def hasValidSavedGeometry(self):
+        """检查是否有有效的保存几何信息"""
+        if not self.rememberPosition:
+            return False
+        
+        x = self.savedX
+        y = self.savedY
+        width = self.savedWidth
+        height = self.savedHeight
+        
+        # 检查坐标是否有效（不为-1且在合理范围内）
+        return (x >= 0 and y >= 0 and 
+                width >= 200 and height >= 150 and
+                width <= 3000 and height <= 2000)
 
 
 class AnswerBoxQML:

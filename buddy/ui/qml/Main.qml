@@ -2,13 +2,31 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Controls.Material 2.15
+import QtQuick.Window 2.15
 import "."
 
 ApplicationWindow {
     id: window
     visible: true
-    width: backend ? backend.defaultWidth : 400
-    height: backend ? backend.defaultHeight : 600
+    
+    // 窗口尺寸和位置
+    width: backend && backend.hasValidSavedGeometry() ? backend.savedWidth : (backend ? backend.defaultWidth : 400)
+    height: backend && backend.hasValidSavedGeometry() ? backend.savedHeight : (backend ? backend.defaultHeight : 600)
+    
+    // 窗口位置（如果有保存的位置）
+    Component.onCompleted: {
+        if (backend && backend.hasValidSavedGeometry()) {
+            x = backend.savedX
+            y = backend.savedY
+            console.log("DEBUG: 恢复窗口位置:", x, y, width, height)
+        } else {
+            // 居中显示
+            x = (Screen.width - width) / 2
+            y = (Screen.height - height) / 2
+            console.log("DEBUG: 居中显示窗口:", x, y, width, height)
+        }
+    }
+    
     title: backend ? backend.windowTitle : "Answer Box"
     
     // 窗口置顶设置
@@ -276,6 +294,36 @@ ApplicationWindow {
                 inputArea.text = content
             }
             inputArea.forceActiveFocus()
+        }
+    }
+    
+    // 保存窗口几何信息
+    onXChanged: saveGeometry()
+    onYChanged: saveGeometry()
+    onWidthChanged: saveGeometry()
+    onHeightChanged: saveGeometry()
+    
+    // 窗口关闭时保存几何信息
+    onClosing: {
+        if (backend) {
+            backend.saveWindowGeometry(x, y, width, height)
+        }
+    }
+    
+    function saveGeometry() {
+        if (backend && visible) {
+            // 使用定时器延迟保存，避免频繁调用
+            saveTimer.restart()
+        }
+    }
+    
+    Timer {
+        id: saveTimer
+        interval: 500  // 500ms 延迟
+        onTriggered: {
+            if (backend) {
+                backend.saveWindowGeometry(window.x, window.y, window.width, window.height)
+            }
         }
     }
 } 
