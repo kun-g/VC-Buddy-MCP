@@ -54,6 +54,7 @@ VC-Buddy-MCP/
   - 右键菜单操作
   - 属性和内容预览
   - 状态指示器
+  - 已完成TODO删除功能 ⭐ 新增
 
 ### TODO 解析器增强 ⭐ 已完善
 - **todo_parser.py**: 完整的 TODO.md 文件处理

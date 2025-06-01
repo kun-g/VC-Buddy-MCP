@@ -16,6 +16,7 @@ Item {
     signal itemDoubleClicked()
     signal markDone()
     signal markUndone()
+    signal deleteTodo()
     
     // 右键菜单 - 使用 Popup 替代 Menu
     Popup {
@@ -74,6 +75,36 @@ Item {
                         } else {
                             root.markDone()
                         }
+                    }
+                }
+            }
+            
+            // 删除菜单项（仅对已完成的TODO显示）
+            Rectangle {
+                width: parent.width
+                height: 24
+                color: deleteMouseArea.containsMouse ? Theme.colors.hover : "transparent"
+                radius: Theme.radius.small
+                visible: todoItem && todoItem.is_done
+                
+                Text {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 8
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "🗑️ 删除"
+                    font.pixelSize: Theme.fonts.small
+                    font.family: Theme.fonts.family
+                    color: Theme.colors.error
+                }
+                
+                MouseArea {
+                    id: deleteMouseArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: {
+                        console.log("DEBUG: 删除TODO项目")
+                        contextMenu.close()
+                        root.deleteTodo()
                     }
                 }
             }

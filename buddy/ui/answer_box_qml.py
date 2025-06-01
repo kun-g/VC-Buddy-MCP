@@ -286,6 +286,35 @@ class AnswerBoxBackend(QObject):
             # 刷新模型以更新显示
             self._todo_model.setTodos(self._todo_items)
     
+    @Slot(int)
+    def deleteTodoItem(self, index: int):
+        """删除已完成的TODO项目"""
+        print(f"DEBUG: 删除TODO项目 {index}", file=sys.stderr)
+        todo_item = self._todo_model.getTodoItem(index)
+        if todo_item and todo_item.is_done:
+            # 从列表中移除该项目
+            self._remove_todo_from_tree(todo_item)
+            self._save_todos_to_file()
+            # 刷新模型以更新显示
+            self._todo_model.setTodos(self._todo_items)
+            # 清除选中状态
+            self._selected_todo_title = None
+            self._selected_todo_detail = "选择一个任务查看详情"
+            self.selectedTodoDetailChanged.emit()
+        else:
+            print("WARNING: 只能删除已完成的TODO项目", file=sys.stderr)
+    
+    def _remove_todo_from_tree(self, todo_item):
+        """从TODO树中移除指定项目"""
+        # 如果有父项目，从父项目的children中移除
+        if todo_item.parent:
+            if todo_item in todo_item.parent.children:
+                todo_item.parent.children.remove(todo_item)
+        else:
+            # 如果是顶级项目，从根列表中移除
+            if todo_item in self._todo_items:
+                self._todo_items.remove(todo_item)
+    
     def _save_todos_to_file(self):
         """保存TODO列表到文件"""
         if not self._project_directory or not self._todo_items:

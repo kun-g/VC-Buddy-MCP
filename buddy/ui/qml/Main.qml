@@ -127,6 +127,9 @@ ApplicationWindow {
                                 onMarkUndone: {
                                     if (backend) backend.markTodoUndone(model.index)
                                 }
+                                onDeleteTodo: {
+                                    if (backend) backend.deleteTodoItem(model.index)
+                                }
                             }
                         }
                     }
