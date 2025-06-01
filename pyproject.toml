@@ -33,13 +33,6 @@ dev = [
     "ruff>=0.1.0",
 ]
 
-[project.scripts]
-buddy = "buddy.ui.main:main"
-buddy-mcp-stdio = "buddy.server.stdio_runner:main"
-buddy-mcp     = "buddy.server.run_fastmcp:main"
-buddy-fastmcp = "buddy.server.run_fastmcp:main"
-buddy-test-fastmcp = "buddy.client.test_fastmcp_client:main"
-
 [dependency-groups]
 # 开发依赖
 dev = [

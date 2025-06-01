@@ -36,10 +36,82 @@ make install
 uv sync
 ```
 
-### 3. 安装MCP
+### 3. 配置 MCP 服务器
+
+本项目提供了基于 **FastMCP** 的服务器实现，支持交互式反馈功能。
+
+#### 3.1 启动 MCP 服务器
+
+**开发模式（推荐）**
+```bash
+# 启动开发模式，包含 MCP Inspector 界面
+make dev
+# 或者
+uv run fastmcp dev buddy/server/main.py
+```
+
+**标准 stdio 模式**
+```bash
+# 直接运行 MCP 服务器（stdio 传输）
+uv run python buddy/server/main.py
+```
+
+#### 3.2 配置客户端连接
+
+**方式一：Claude Desktop 配置**
+
+在 Claude Desktop 的配置文件中添加：
+
+```json
+{
+  "mcpServers": {
+    "vibe-coding-buddy": {
+      "command": "uv",
+      "args": ["run", "python", "buddy/server/main.py"],
+      "cwd": "/path/to/VC-Buddy-MCP"
+    }
+  }
+}
+```
+
+**方式二：直接测试**
+
+```bash
+# 测试客户端连接
+uv run python buddy/client/test.py
+```
+
+#### 3.3 可用工具
+
+MCP 服务器提供以下工具：
+
+- **ask_for_feedback**: 向用户请求交互式反馈
+  - 参数：`summary` (必需) - 反馈请求描述
+  - 参数：`project_directory` (可选) - 项目目录路径
+  - 返回：用户反馈的 JSON 格式字符串
+
+#### 3.4 环境变量配置
+
+```bash
+# 可选：自定义配置文件路径
+export VC_BUDDY_CONFIG="/path/to/your/config.json"
+
+# 可选：自定义组织信息
+export VC_BUDDY_ORG="Your-Organization"
+export VC_BUDDY_APP_NAME="Your-App-Name"
+```
+
+#### 3.5 验证安装
+
+```bash
+# 测试 MCP 服务器和工具
+uv run python buddy/client/test.py
+
+# 检查服务器是否正常启动
+echo '{"method": "tools/list"}' | uv run python buddy/server/main.py
+```
 
 ### 4. 调试
-
 
 ## 🔧 开发工具
 

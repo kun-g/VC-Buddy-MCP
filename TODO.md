@@ -18,9 +18,16 @@ TODO没有内容时， 双击时就插入标题
 ## 在 TODO 列表里右键完成的任务，在 TODO.md里这条前面加上✅
 state=done
 
+## BUG 完成状态不能正常显示
+TODO加载时，不能正常显示完成状态。在 Answer Box 里操作的可以显示完成状态
+我预期是这两种情况都能正常的显示完成状态。
+补充一下，TODO Item 右键菜单表明完成状态是正确设置的
+
 # 优化answer_box.py
 
-### Style Sheet 模块
+## summary_display 要优化一下，以便阅读 AI 的工作总结
+
+## Style Sheet 模块
 实现一个 Style Sheet 模块，
 
 ## 引入QML

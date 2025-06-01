@@ -112,27 +112,28 @@ class AnswerBox(QDialog):
         """设置用户界面"""
         self.layout = QVBoxLayout()
         
-        # 对话框标题
-        summary_text = ""
-        if self.project_directory:
-            folder_name = Path(self.project_directory).name
-            summary_text = f"✅ 项目: {folder_name}"
-            if self.todo_items:
-                summary_text += f" | 📝 TODO任务: {len(self.todo_items)} 项"
-        else:
-            summary_text = "💬 Feedback Dialog"
+        # AI 工作总结显示区域 - 使用 QTextBrowser 以便更好地显示长文本
+        summary_label = QLabel("🤖 AI 工作总结:")
+        summary_label.setStyleSheet("font-weight: bold; color: #333; margin-bottom: 4px;")
+        self.layout.addWidget(summary_label)
         
-        self.summary_display = QLabel(summary_text)
+        self.summary_display = QTextBrowser()
+        self.summary_display.setPlainText(self.summary_text)
+        self.summary_display.setMaximumHeight(120)  # 限制高度，避免占用太多空间
         self.summary_display.setStyleSheet("""
-            QLabel {
-                background-color: #f0f9ff;
-                border: 1px solid #0ea5e9;
-                border-radius: 6px;
-                padding: 8px 12px;
-                font-size: 12px;
-                font-weight: bold;
-                color: #0c4a6e;
-                margin-bottom: 12px;
+            QTextBrowser {
+                background-color: #f8fafc;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 12px;
+                font-size: 13px;
+                color: #334155;
+                margin-bottom: 16px;
+                line-height: 1.4;
+            }
+            QTextBrowser:focus {
+                border: 2px solid #3b82f6;
+                outline: none;
             }
         """)
         self.layout.addWidget(self.summary_display)
