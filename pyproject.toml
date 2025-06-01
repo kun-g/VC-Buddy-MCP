@@ -44,7 +44,6 @@ buddy-mcp-stdio = "buddy.server.stdio_runner:main"
 buddy-mcp     = "buddy.server.run_fastmcp:main"
 buddy-fastmcp = "buddy.server.run_fastmcp:main"
 buddy-test-fastmcp = "buddy.client.test_fastmcp_client:main"
-# uv run fastmcp dev --server-port 6288 --ui-port 6289 buddy/server/run_fastmcp.py
 
 [dependency-groups]
 # 开发依赖
