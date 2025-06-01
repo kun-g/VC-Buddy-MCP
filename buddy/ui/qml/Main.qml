@@ -54,6 +54,7 @@ ApplicationWindow {
             ScrollView {
                 anchors.fill: parent
                 anchors.margins: Theme.spacing.normal
+                clip: true  // 防止内容溢出边界
                 
                 Text {
                     id: summaryText
@@ -81,6 +82,7 @@ ApplicationWindow {
                 border.color: Theme.colors.borderDark
                 border.width: 1
                 radius: Theme.radius.medium
+                clip: true  // 确保所有内容都在边界内
                 
                 visible: backend && backend.hasTodos
                 
@@ -100,10 +102,12 @@ ApplicationWindow {
                     ScrollView {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
+                        clip: true  // 防止内容溢出边界
                         
                         ListView {
                             id: todoListView
                             model: backend ? backend.todoModel : null
+                            clip: true  // 确保列表项不会溢出ListView边界
                             
                             delegate: TodoItemDelegate {
                                 width: todoListView.width
@@ -143,6 +147,7 @@ ApplicationWindow {
                         border.color: Theme.colors.borderDark
                         border.width: 1
                         radius: Theme.radius.medium
+                        clip: true  // 确保内容不会溢出边界
                         
                         visible: backend && backend.hasTodos
                         
@@ -162,6 +167,7 @@ ApplicationWindow {
                             ScrollView {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
+                                clip: true  // 防止内容溢出边界
                                 
                                 TextArea {
                                     id: todoDetailText
@@ -199,6 +205,7 @@ ApplicationWindow {
                         ScrollView {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
+                            clip: true  // 防止内容溢出边界
                             
                             TextArea {
                                 id: inputArea
