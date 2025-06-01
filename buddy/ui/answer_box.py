@@ -111,9 +111,33 @@ class AnswerBox(QDialog):
         """设置用户界面"""
         self.layout = QVBoxLayout()
         
-        # 摘要标签
-        self.label = QLabel(self.summary_text)
-        self.layout.addWidget(self.label)
+        # 摘要显示区域 - 使用QTextBrowser美化显示
+        self.summary_display = QTextBrowser()
+        self.summary_display.setMaximumHeight(100)
+        self.summary_display.setStyleSheet("""
+            QTextBrowser {
+                background-color: #f0f0f0;
+                border: 1px solid #d0d0d0;
+                border-radius: 5px;
+                padding: 8px;
+                font-size: 12px;
+            }
+        """)
+        
+        # 设置摘要内容
+        if self.summary_text:
+            # 将纯文本转换为HTML格式
+            html_content = f"""
+            <div style="color: #333; line-height: 1.4;">
+                <strong style="color: #2c5aa0;">📋 任务摘要:</strong><br>
+                {self.summary_text.replace(chr(10), '<br>')}
+            </div>
+            """
+            self.summary_display.setHtml(html_content)
+        else:
+            self.summary_display.setHtml("<i style='color: #888;'>无任务摘要</i>")
+        
+        self.layout.addWidget(self.summary_display)
         
         # 如果有TODO项目，创建分割器布局
         if self.todo_items:
@@ -121,7 +145,25 @@ class AnswerBox(QDialog):
             
             # 左侧：TODO树状视图
             self.todo_tree = QTreeWidget()
-            self.todo_tree.setHeaderLabel("TODO 任务")
+            self.todo_tree.setHeaderLabel("📝 TODO 任务")
+            self.todo_tree.setStyleSheet("""
+                QTreeWidget {
+                    border: 1px solid #d0d0d0;
+                    border-radius: 5px;
+                    background-color: white;
+                }
+                QTreeWidget::item {
+                    padding: 4px;
+                    border-bottom: 1px solid #f0f0f0;
+                }
+                QTreeWidget::item:selected {
+                    background-color: #e3f2fd;
+                    color: #1976d2;
+                }
+                QTreeWidget::item:hover {
+                    background-color: #f5f5f5;
+                }
+            """)
             self.todo_tree.itemClicked.connect(self._on_todo_item_clicked)
             self.todo_tree.itemDoubleClicked.connect(self._on_todo_item_double_clicked)
             self._populate_todo_tree()
@@ -137,10 +179,35 @@ class AnswerBox(QDialog):
         else:
             # 没有TODO时，只显示输入区域
             self.input = QTextEdit()
+            self.input.setStyleSheet("""
+                QTextEdit {
+                    border: 1px solid #d0d0d0;
+                    border-radius: 5px;
+                    padding: 8px;
+                    font-size: 12px;
+                }
+            """)
             self.layout.addWidget(self.input)
         
         # 发送按钮
-        self.button = QPushButton("Send (Ctrl+Enter)")
+        self.button = QPushButton("📤 Send (Ctrl+Enter)")
+        self.button.setStyleSheet("""
+            QPushButton {
+                background-color: #2196f3;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 8px 16px;
+                font-size: 12px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #1976d2;
+            }
+            QPushButton:pressed {
+                background-color: #0d47a1;
+            }
+        """)
         self.button.clicked.connect(self.respond)
         self.layout.addWidget(self.button)
         
@@ -158,14 +225,40 @@ class AnswerBox(QDialog):
         layout = QVBoxLayout()
         
         # TODO详情显示
+        detail_label = QLabel("📄 任务详情:")
+        detail_label.setStyleSheet("font-weight: bold; color: #333; margin-bottom: 4px;")
+        layout.addWidget(detail_label)
+        
         self.todo_detail = QTextBrowser()
         self.todo_detail.setMaximumHeight(150)
-        layout.addWidget(QLabel("任务详情:"))
+        self.todo_detail.setStyleSheet("""
+            QTextBrowser {
+                border: 1px solid #d0d0d0;
+                border-radius: 5px;
+                padding: 8px;
+                background-color: #fafafa;
+                font-size: 11px;
+            }
+        """)
         layout.addWidget(self.todo_detail)
         
         # 输入区域
-        layout.addWidget(QLabel("反馈内容:"))
+        input_label = QLabel("💬 反馈内容:")
+        input_label.setStyleSheet("font-weight: bold; color: #333; margin-top: 8px; margin-bottom: 4px;")
+        layout.addWidget(input_label)
+        
         self.input = QTextEdit()
+        self.input.setStyleSheet("""
+            QTextEdit {
+                border: 1px solid #d0d0d0;
+                border-radius: 5px;
+                padding: 8px;
+                font-size: 12px;
+            }
+            QTextEdit:focus {
+                border: 2px solid #2196f3;
+            }
+        """)
         layout.addWidget(self.input)
         
         widget.setLayout(layout)
