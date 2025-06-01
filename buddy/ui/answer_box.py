@@ -2,18 +2,22 @@ import sys
 import json
 import os
 from pathlib import Path
-from PySide6.QtWidgets import QApplication, QPushButton, QDialog, QLabel, QVBoxLayout, QTextEdit
+from PySide6.QtWidgets import (QApplication, QPushButton, QDialog, QLabel, 
+                               QVBoxLayout, QTextEdit, QTreeWidget, QTreeWidgetItem,
+                               QHBoxLayout, QSplitter, QTextBrowser)
 from PySide6.QtCore import QSettings, Qt
 from PySide6.QtGui import QKeySequence, QShortcut
 
 # 处理相对导入问题
 try:
     from .config import config_manager, get_project_config_manager
+    from .todo_parser import TodoParser, TodoItem
 except ImportError:
     # 如果作为脚本直接运行，需要添加路径
     current_dir = Path(__file__).parent
     sys.path.insert(0, str(current_dir))
     from config import config_manager, get_project_config_manager
+    from todo_parser import TodoParser, TodoItem
 
 # --- 设置工具类 ---
 class SettingsManager:
@@ -94,27 +98,111 @@ class AnswerBox(QDialog):
         
         self._restore_geometry_or_center()
         
+        # 加载TODO数据
+        self.todo_parser = TodoParser()
+        self.todo_items = []
+        if self.project_directory:
+            self.todo_items = self.todo_parser.load_project_todos(self.project_directory)
+        
+        self._setup_ui()
+        self.show()
+
+    def _setup_ui(self):
+        """设置用户界面"""
+        self.layout = QVBoxLayout()
+        
+        # 摘要标签
         self.label = QLabel(self.summary_text)
-        self.label.show()
-
-        self.input = QTextEdit()
-        self.input.show()
-
+        self.layout.addWidget(self.label)
+        
+        # 如果有TODO项目，创建分割器布局
+        if self.todo_items:
+            splitter = QSplitter(Qt.Horizontal)
+            
+            # 左侧：TODO树状视图
+            self.todo_tree = QTreeWidget()
+            self.todo_tree.setHeaderLabel("TODO 任务")
+            self.todo_tree.itemClicked.connect(self._on_todo_item_clicked)
+            self._populate_todo_tree()
+            splitter.addWidget(self.todo_tree)
+            
+            # 右侧：详情和输入区域
+            right_widget = self._create_right_panel()
+            splitter.addWidget(right_widget)
+            
+            # 设置分割器比例
+            splitter.setSizes([200, 300])
+            self.layout.addWidget(splitter)
+        else:
+            # 没有TODO时，只显示输入区域
+            self.input = QTextEdit()
+            self.layout.addWidget(self.input)
+        
+        # 发送按钮
         self.button = QPushButton("Send (Ctrl+Enter)")
         self.button.clicked.connect(self.respond)
-        self.button.show()
-
+        self.layout.addWidget(self.button)
+        
         # 设置 Ctrl+Enter 快捷键
         self.send_shortcut = QShortcut(QKeySequence("Ctrl+Return"), self)
         self.send_shortcut.activated.connect(self.respond)
-
-        self.layout = QVBoxLayout()
-        self.layout.addWidget(self.label)
-        self.layout.addWidget(self.input)
-        self.layout.addWidget(self.button)
+        
         self.setLayout(self.layout)
 
-        self.show()
+    def _create_right_panel(self):
+        """创建右侧面板"""
+        from PySide6.QtWidgets import QWidget
+        
+        widget = QWidget()
+        layout = QVBoxLayout()
+        
+        # TODO详情显示
+        self.todo_detail = QTextBrowser()
+        self.todo_detail.setMaximumHeight(150)
+        layout.addWidget(QLabel("任务详情:"))
+        layout.addWidget(self.todo_detail)
+        
+        # 输入区域
+        layout.addWidget(QLabel("反馈内容:"))
+        self.input = QTextEdit()
+        layout.addWidget(self.input)
+        
+        widget.setLayout(layout)
+        return widget
+
+    def _populate_todo_tree(self):
+        """填充TODO树状视图"""
+        for todo_item in self.todo_items:
+            tree_item = self._create_tree_item(todo_item)
+            self.todo_tree.addTopLevelItem(tree_item)
+        
+        # 展开所有项目
+        self.todo_tree.expandAll()
+
+    def _create_tree_item(self, todo_item: TodoItem) -> QTreeWidgetItem:
+        """创建树状视图项目"""
+        tree_item = QTreeWidgetItem([todo_item.title])
+        tree_item.setData(0, Qt.UserRole, todo_item)
+        
+        # 添加子项目
+        for child in todo_item.children:
+            child_item = self._create_tree_item(child)
+            tree_item.addChild(child_item)
+        
+        return tree_item
+
+    def _on_todo_item_clicked(self, item: QTreeWidgetItem, column: int):
+        """处理TODO项目点击事件"""
+        todo_item = item.data(0, Qt.UserRole)
+        if todo_item and hasattr(self, 'todo_detail'):
+            # 显示任务详情
+            detail_text = f"<h3>{todo_item.title}</h3>"
+            if todo_item.content:
+                detail_text += f"<p>{todo_item.content.replace(chr(10), '<br>')}</p>"
+            else:
+                detail_text += "<p><i>无详细说明</i></p>"
+            
+            self.todo_detail.setHtml(detail_text)
 
     def respond(self):
         response = {
