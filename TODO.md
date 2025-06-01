@@ -9,11 +9,9 @@ abc=123
 
 # 优化answer_box.py
 
-## summary_display 要优化一下，以便阅读 AI 的工作总结
-state=done
+## 保持界面关闭时的位置和大小信息，参考 answer_box.py
 
-## Style Sheet 模块
-实现一个 Style Sheet 模块，
+## 增加录音按钮和功能，参考 answer_box.py
 
 ## 引入QML
 使用 QML 拆分逻辑和布局

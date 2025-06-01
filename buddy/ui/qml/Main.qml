@@ -2,6 +2,7 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Controls.Material 2.15
+import "."
 
 ApplicationWindow {
     id: window
@@ -15,34 +16,35 @@ ApplicationWindow {
     
     // Material 主题设置
     Material.theme: Material.Light
-    Material.accent: Material.Blue
+    Material.accent: Theme.colors.primary
     
     // 主布局
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 12
-        spacing: 12
+        anchors.margins: Theme.spacing.medium
+        spacing: Theme.spacing.medium
         
         // 摘要显示区域
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 100
-            color: "#f0f0f0"
-            border.color: "#d0d0d0"
+            color: Theme.colors.backgroundSecondary
+            border.color: Theme.colors.borderDark
             border.width: 1
-            radius: 5
+            radius: Theme.radius.medium
             
             ScrollView {
                 anchors.fill: parent
-                anchors.margins: 8
+                anchors.margins: Theme.spacing.normal
                 
                 Text {
                     id: summaryText
                     width: parent.width
                     text: backend ? backend.summaryText : "Nothing here"
                     wrapMode: Text.WordWrap
-                    font.pixelSize: 12
-                    color: "#333"
+                    font.pixelSize: Theme.fonts.normal
+                    font.family: Theme.fonts.family
+                    color: Theme.colors.text
                 }
             }
         }
@@ -57,22 +59,24 @@ ApplicationWindow {
             Rectangle {
                 SplitView.preferredWidth: 200
                 SplitView.minimumWidth: 150
-                color: "white"
-                border.color: "#d0d0d0"
+                color: Theme.colors.background
+                border.color: Theme.colors.borderDark
                 border.width: 1
-                radius: 5
+                radius: Theme.radius.medium
                 
                 visible: backend && backend.hasTodos
                 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 8
-                    spacing: 4
+                    anchors.margins: Theme.spacing.normal
+                    spacing: Theme.spacing.small
                     
                     Text {
                         text: "📝 TODO 任务"
                         font.bold: true
-                        color: "#333"
+                        font.pixelSize: Theme.fonts.medium
+                        font.family: Theme.fonts.family
+                        color: Theme.colors.text
                     }
                     
                     ScrollView {
@@ -111,28 +115,30 @@ ApplicationWindow {
                 
                 ColumnLayout {
                     anchors.fill: parent
-                    spacing: 8
+                    spacing: Theme.spacing.normal
                     
                     // TODO详情显示（仅在有TODO时显示）
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 150
-                        color: "#fafafa"
-                        border.color: "#d0d0d0"
+                        color: Theme.colors.surface
+                        border.color: Theme.colors.borderDark
                         border.width: 1
-                        radius: 5
+                        radius: Theme.radius.medium
                         
                         visible: backend && backend.hasTodos
                         
                         ColumnLayout {
                             anchors.fill: parent
-                            anchors.margins: 8
-                            spacing: 4
+                            anchors.margins: Theme.spacing.normal
+                            spacing: Theme.spacing.small
                             
                             Text {
                                 text: "📄 任务详情:"
                                 font.bold: true
-                                color: "#333"
+                                font.pixelSize: Theme.fonts.medium
+                                font.family: Theme.fonts.family
+                                color: Theme.colors.text
                             }
                             
                             ScrollView {
@@ -145,10 +151,14 @@ ApplicationWindow {
                                     text: backend ? backend.selectedTodoDetail : "选择一个任务查看详情"
                                     wrapMode: TextArea.Wrap
                                     textFormat: TextArea.RichText
-                                    font.pixelSize: 11
-                                    color: "#666"
+                                    font.pixelSize: Theme.fonts.small
+                                    font.family: Theme.fonts.family
+                                    color: Theme.colors.textSecondary
                                     readOnly: true
                                     selectByMouse: true
+                                    background: Rectangle {
+                                        color: "transparent"
+                                    }
                                 }
                             }
                         }
@@ -158,12 +168,14 @@ ApplicationWindow {
                     ColumnLayout {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        spacing: 4
+                        spacing: Theme.spacing.small
                         
                         Text {
                             text: "💬 反馈内容:"
                             font.bold: true
-                            color: "#333"
+                            font.pixelSize: Theme.fonts.medium
+                            font.family: Theme.fonts.family
+                            color: Theme.colors.text
                         }
                         
                         ScrollView {
@@ -174,8 +186,17 @@ ApplicationWindow {
                                 id: inputArea
                                 placeholderText: "请输入您的反馈..."
                                 wrapMode: TextArea.Wrap
-                                font.pixelSize: 12
+                                font.pixelSize: Theme.fonts.normal
+                                font.family: Theme.fonts.family
                                 selectByMouse: true
+                                color: Theme.colors.text
+                                
+                                background: Rectangle {
+                                    color: Theme.colors.background
+                                    border.color: Theme.colors.border
+                                    border.width: 1
+                                    radius: Theme.radius.normal
+                                }
                                 
                                 // Ctrl+Enter快捷键
                                 Keys.onPressed: function(event) {
@@ -192,7 +213,8 @@ ApplicationWindow {
                         CheckBox {
                             id: commitCheckbox
                             text: "📝 Commit - 要求先提交修改的文件"
-                            font.pixelSize: 11
+                            font.pixelSize: Theme.fonts.small
+                            font.family: Theme.fonts.family
                         }
                         
                         // 发送按钮
@@ -201,7 +223,31 @@ ApplicationWindow {
                             Layout.fillWidth: true
                             text: "📤 Send (Ctrl+Enter)"
                             font.bold: true
-                            Material.background: Material.Blue
+                            font.pixelSize: Theme.fonts.normal
+                            font.family: Theme.fonts.family
+                            
+                            background: Rectangle {
+                                color: sendButton.pressed ? Theme.colors.primaryDark : 
+                                       sendButton.hovered ? Theme.colors.primaryDark : Theme.colors.primary
+                                radius: Theme.radius.normal
+                                
+                                Behavior on color {
+                                    ColorAnimation {
+                                        duration: Theme.animation.fast
+                                        easing.type: Easing.OutQuad
+                                    }
+                                }
+                            }
+                            
+                            contentItem: Text {
+                                text: sendButton.text
+                                font: sendButton.font
+                                opacity: enabled ? 1.0 : 0.3
+                                color: Theme.colors.textOnPrimary
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                                elide: Text.ElideRight
+                            }
                             
                             onClicked: {
                                 if (!backend) return

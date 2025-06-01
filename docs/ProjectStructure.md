@@ -13,10 +13,13 @@ VC-Buddy-MCP/
 │   ├── ui/                         # PySide6 GUI
 │   │   ├── answer_box.py          # Answer Box 传统界面 ⭐ 已优化
 │   │   ├── answer_box_qml.py      # Answer Box QML版本 ⭐ 新增
+│   │   ├── style_manager.py       # 样式管理器 ⭐ 新增
+│   │   ├── styles.qss             # QSS 样式文件 ⭐ 新增
 │   │   ├── qml/                   # QML 界面文件 ⭐ 新增
-│   │   │   ├── Main.qml           # 主界面 QML
-│   │   │   ├── TodoItemDelegate.qml # TODO 项目组件
-│   │   │   └── qmldir             # QML 模块配置
+│   │   │   ├── Main.qml           # 主界面 QML ⭐ 使用主题系统
+│   │   │   ├── TodoItemDelegate.qml # TODO 项目组件 ⭐ 使用主题系统
+│   │   │   ├── Theme.qml          # QML 主题定义 ⭐ 新增
+│   │   │   └── qmldir             # QML 模块配置 ⭐ 已更新
 │   │   ├── config.py              # 配置管理
 │   │   ├── todo_parser.py         # TODO 解析器 ⭐ 已完善
 │   │   └── voice_recorder.py      # 语音录制模块 ⭐ 新增
@@ -90,6 +93,43 @@ VC-Buddy-MCP/
 - 添加 pyaudio>=0.2.11 (语音录制)
 - 添加 openai>=1.0.0 (Whisper API)
 - 添加 requests>=2.31.0 (HTTP 请求)
+
+### 样式系统重构 ⭐ 新增
+- **styles.qss**: 完整的 QSS 样式文件
+  - Material Design 颜色方案
+  - 完整的控件样式定义
+  - 支持按钮、输入框、列表、滚动条等组件
+  - 特殊类样式支持 (.todo-item, .summary-box 等)
+- **style_manager.py**: 样式管理器模块
+  - StyleManager: 样式加载和应用管理
+  - 支持多主题切换 (默认/深色)
+  - QSS 文件动态加载
+  - 主题配置导入导出
+- **Theme.qml**: QML 主题单例
+  - 统一的颜色、字体、间距定义
+  - 响应式设计常量
+  - 动画和阴影配置
+- **界面文件更新**: Main.qml 和 TodoItemDelegate.qml
+  - 移除硬编码样式值
+  - 使用主题系统统一管理
+  - 支持实时主题切换
+
+## 🎯 样式系统架构
+
+### QSS 样式 (Qt Widgets)
+- **styles.qss**: 传统 Qt Widgets 样式
+- **StyleManager**: 动态加载和应用 QSS
+- **主题切换**: 支持多套颜色方案
+
+### QML 主题 (QML 界面)
+- **Theme.qml**: 单例主题对象
+- **声明式**: 通过 Theme.colors.primary 访问
+- **响应式**: 自动适配不同屏幕尺寸
+
+### 统一设计语言
+- **Material Design**: 遵循 Google Material 设计规范
+- **颜色一致性**: QSS 和 QML 使用相同颜色值
+- **可维护性**: 集中管理所有样式定义
 
 ## 🎯 QML vs 传统界面对比
 

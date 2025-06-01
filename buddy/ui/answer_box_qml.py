@@ -12,12 +12,14 @@ from PySide6.QtQml import QQmlApplicationEngine, qmlRegisterType
 try:
     from .config import config_manager, get_project_config_manager
     from .todo_parser import TodoParser, TodoItem
+    from .style_manager import StyleManager, load_default_styles
 except ImportError:
     # 如果作为脚本直接运行，需要添加路径
     current_dir = Path(__file__).parent
     sys.path.insert(0, str(current_dir))
     from config import config_manager, get_project_config_manager
     from todo_parser import TodoParser, TodoItem
+    from style_manager import StyleManager, load_default_styles
 
 
 class TodoListModel(QAbstractListModel):
@@ -295,20 +297,48 @@ class AnswerBoxQML:
         os.environ["QT_QUICK_CONTROLS_STYLE"] = "Material"
         
         self.app = QGuiApplication(sys.argv)
+        
+        # 初始化样式管理器
+        self.style_manager = StyleManager()
+        
+        # 加载默认 QSS 样式
+        print("DEBUG: 加载 QSS 样式", file=sys.stderr)
+        style_loaded = load_default_styles()
+        if style_loaded:
+            print("DEBUG: QSS 样式加载成功", file=sys.stderr)
+        else:
+            print("WARNING: QSS 样式加载失败，使用默认样式", file=sys.stderr)
+        
         self.engine = QQmlApplicationEngine()
         
         # 注册自定义类型
         qmlRegisterType(AnswerBoxBackend, "AnswerBoxBackend", 1, 0, "AnswerBoxBackend")
+        qmlRegisterType(StyleManager, "StyleManager", 1, 0, "StyleManager")
         
         # 创建后端对象
         self.backend = AnswerBoxBackend()
         
         # 设置QML上下文属性
         self.engine.rootContext().setContextProperty("backend", self.backend)
+        self.engine.rootContext().setContextProperty("styleManager", self.style_manager)
         
         # 添加QML模块路径
         qml_dir = Path(__file__).parent / "qml"
+        print(f"DEBUG: QML 目录: {qml_dir}", file=sys.stderr)
+        print(f"DEBUG: QML 目录是否存在: {qml_dir.exists()}", file=sys.stderr)
+        
+        # 添加模块搜索路径
+        self.engine.addImportPath(str(qml_dir))
         self.engine.addImportPath(str(qml_dir.parent))
+        
+        # 检查 qmldir 文件
+        qmldir_file = qml_dir / "qmldir"
+        print(f"DEBUG: qmldir 文件: {qmldir_file}", file=sys.stderr)
+        print(f"DEBUG: qmldir 是否存在: {qmldir_file.exists()}", file=sys.stderr)
+        if qmldir_file.exists():
+            with open(qmldir_file, 'r', encoding='utf-8') as f:
+                qmldir_content = f.read()
+            print(f"DEBUG: qmldir 内容:\n{qmldir_content}", file=sys.stderr)
         
         # 加载QML文件
         qml_file = qml_dir / "Main.qml"

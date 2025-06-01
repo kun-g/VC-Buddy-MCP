@@ -1,10 +1,11 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "."
 
 Item {
     id: root
-    height: contentColumn.height + 8
+    height: contentColumn.height + Theme.spacing.normal
     
     property var todoItem: modelData.todoItem
     property int indentLevel: todoItem ? todoItem.level - 1 : 0
@@ -16,10 +17,30 @@ Item {
     
     Rectangle {
         anchors.fill: parent
-        color: mouseArea.containsMouse ? "#f5f5f5" : "transparent"
-        border.color: "#f0f0f0"
+        color: mouseArea.containsMouse ? Theme.colors.hover : "transparent"
+        border.color: Theme.colors.borderLight
         border.width: 1
-        radius: 3
+        radius: Theme.radius.small
+        
+        // 完成状态的背景色
+        states: [
+            State {
+                name: "completed"
+                when: todoItem && todoItem.is_done
+                PropertyChanges {
+                    target: root.children[0]  // Rectangle 组件
+                    color: Theme.colors.todoCompleted
+                    border.color: Theme.colors.todoCompletedBorder
+                }
+            }
+        ]
+        
+        transitions: Transition {
+            ColorAnimation {
+                duration: Theme.animation.fast
+                easing.type: Easing.OutQuad
+            }
+        }
         
         MouseArea {
             id: mouseArea
@@ -41,8 +62,23 @@ Item {
         Menu {
             id: contextMenu
             
+            background: Rectangle {
+                color: Theme.colors.background
+                border.color: Theme.colors.border
+                border.width: 1
+                radius: Theme.radius.normal
+            }
+            
             MenuItem {
                 text: todoItem && todoItem.is_done ? "❌ 标记为未完成" : "✅ 标记为完成"
+                font.pixelSize: Theme.fonts.small
+                font.family: Theme.fonts.family
+                
+                background: Rectangle {
+                    color: parent.hovered ? Theme.colors.hover : "transparent"
+                    radius: Theme.radius.small
+                }
+                
                 onTriggered: {
                     if (todoItem && todoItem.is_done) {
                         root.markUndone()
@@ -58,22 +94,22 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            anchors.margins: 4
-            anchors.leftMargin: 4 + (indentLevel * 16)
-            spacing: 2
+            anchors.margins: Theme.spacing.small
+            anchors.leftMargin: Theme.spacing.small + (indentLevel * Theme.spacing.large)
+            spacing: Theme.spacing.tiny
             
             // 标题行
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 4
+                spacing: Theme.spacing.small
                 
                 // 层级指示器
                 Repeater {
                     model: indentLevel
                     Rectangle {
                         width: 2
-                        height: 16
-                        color: "#ddd"
+                        height: Theme.spacing.large
+                        color: Theme.colors.border
                     }
                 }
                 
@@ -81,19 +117,27 @@ Item {
                 Text {
                     Layout.fillWidth: true
                     text: todoItem ? todoItem.display_title : "加载中..."
-                    font.pixelSize: 12
+                    font.pixelSize: Theme.fonts.normal
+                    font.family: Theme.fonts.family
                     font.bold: indentLevel === 0
-                    color: "#333"
+                    color: Theme.colors.text
                     wrapMode: Text.WordWrap
                 }
                 
                 // 完成状态指示器
                 Rectangle {
-                    width: 8
-                    height: 8
-                    radius: 4
-                    color: todoItem && todoItem.is_done ? "#4caf50" : "#ccc"
+                    width: Theme.spacing.normal
+                    height: Theme.spacing.normal
+                    radius: Theme.spacing.small
+                    color: todoItem && todoItem.is_done ? Theme.colors.success : Theme.colors.disabled
                     visible: todoItem && todoItem.attributes && Object.keys(todoItem.attributes).length > 0
+                    
+                    Behavior on color {
+                        ColorAnimation {
+                            duration: Theme.animation.fast
+                            easing.type: Easing.OutQuad
+                        }
+                    }
                 }
             }
             
@@ -108,27 +152,29 @@ Item {
                 
                 RowLayout {
                     Layout.fillWidth: true
-                    Layout.leftMargin: indentLevel * 16
-                    spacing: 4
+                    Layout.leftMargin: indentLevel * Theme.spacing.large
+                    spacing: Theme.spacing.small
                     
                     Text {
                         text: "📌"
-                        font.pixelSize: 10
-                        color: "#666"
+                        font.pixelSize: Theme.fonts.small
+                        color: Theme.colors.textSecondary
                     }
                     
                     Text {
                         text: modelData + ":"
-                        font.pixelSize: 10
+                        font.pixelSize: Theme.fonts.small
+                        font.family: Theme.fonts.family
                         font.bold: true
-                        color: "#666"
+                        color: Theme.colors.textSecondary
                     }
                     
                     Text {
                         Layout.fillWidth: true
                         text: todoItem && todoItem.attributes ? todoItem.attributes[modelData] : ""
-                        font.pixelSize: 10
-                        color: "#888"
+                        font.pixelSize: Theme.fonts.small
+                        font.family: Theme.fonts.family
+                        color: Theme.colors.textHint
                         wrapMode: Text.WordWrap
                     }
                 }
@@ -137,7 +183,7 @@ Item {
             // 内容预览（如果有的话）
             Text {
                 Layout.fillWidth: true
-                Layout.leftMargin: indentLevel * 16
+                Layout.leftMargin: indentLevel * Theme.spacing.large
                 text: {
                     if (todoItem && todoItem.content) {
                         var content = todoItem.content.toString()
@@ -145,8 +191,9 @@ Item {
                     }
                     return ""
                 }
-                font.pixelSize: 10
-                color: "#666"
+                font.pixelSize: Theme.fonts.small
+                font.family: Theme.fonts.family
+                color: Theme.colors.textSecondary
                 wrapMode: Text.WordWrap
                 visible: todoItem && todoItem.content && todoItem.content.toString().trim() !== ""
             }
