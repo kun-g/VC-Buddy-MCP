@@ -366,7 +366,7 @@ class AnswerBox(QDialog):
             if todo_item.content:
                 insert_text = todo_item.content
             else:
-                insert_text = f"关于任务: {todo_item.title}"
+                insert_text = f"{todo_item.title}"
             
             # 如果输入框不为空，添加换行
             if current_text.strip():
@@ -391,10 +391,7 @@ class AnswerBox(QDialog):
         response = {
             "result": feedback_text
         }
-        # 如果有项目目录，也包含在响应中
-        if self.project_directory:
-            response["project_directory"] = self.project_directory
-            
+
         sys.stdout.write(json.dumps(response, ensure_ascii=False))
         sys.stdout.flush()
         self.app.quit()

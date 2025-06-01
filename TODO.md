@@ -1,5 +1,6 @@
 # TODO展示
 ## TODO支持属性
+state=done
 TODO 支持属性， 紧接着标题的赋值预计， 例如：
 state=going
 abc=123
@@ -9,6 +10,9 @@ abc=123
 
 ## TODO没有内容时，就替换标题
 TODO没有内容时， 双击时就插入标题
+
+## 测试没内容的
+state=done
 
 # 优化answer_box.py
 ### Style Sheet 模块
@@ -26,3 +30,6 @@ https://doc.qt.io/qt-6/stylesheet.html
 
 # 初始化引导
 引导设置 Cursor User Rules
+
+# 单元测试
+## 给 todo_parser.py 实现单元测试

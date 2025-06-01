@@ -7,6 +7,7 @@ import os
 
 mcp = FastMCP(
     name="Vibe Coding Buddy",
+    version="0.1.0",
     instructions="This is a test server for Vibe Coding Buddy.",
 )
 
