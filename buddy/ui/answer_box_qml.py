@@ -149,6 +149,7 @@ class AnswerBoxBackend(QObject):
         
         # 选中的TODO详情
         self._selected_todo_detail = "选择一个任务查看详情"
+        self._selected_todo_title = None
         
         # 调试信息
         print(f"DEBUG: 加载了 {len(self._todo_items)} 个TODO项目", file=sys.stderr)
@@ -186,6 +187,10 @@ class AnswerBoxBackend(QObject):
     @Property(str, notify=selectedTodoDetailChanged)
     def selectedTodoDetail(self):
         return self._selected_todo_detail
+    
+    @Property(str, notify=selectedTodoDetailChanged)
+    def selectedTodoTitle(self):
+        return self._selected_todo_title
     
     @Property(bool, constant=True)
     def rememberPosition(self):
@@ -226,15 +231,21 @@ class AnswerBoxBackend(QObject):
         """选择TODO项目"""
         todo_item = self._todo_model.getTodoItem(index)
         if todo_item:
-            detail_text = f"<h3>{todo_item.display_title}</h3>"
+            # 设置选中的标题
+            self._selected_todo_title = todo_item.display_title
             
-            # 显示内容
+            # 详情框只显示内容，不包含标题
             if todo_item.content:
-                detail_text += f"{todo_item.content.replace(chr(10), '<br>')}</p>"
+                detail_text = todo_item.content.replace(chr(10), '<br>')
             else:
-                detail_text += "<p><i>无详细说明</i></p>"
+                detail_text = "<i>无详细说明</i>"
             
             self._selected_todo_detail = detail_text
+            self.selectedTodoDetailChanged.emit()
+        else:
+            # 没有选中任何项目
+            self._selected_todo_title = None
+            self._selected_todo_detail = "选择一个任务查看详情"
             self.selectedTodoDetailChanged.emit()
     
     @Slot(int)

@@ -160,7 +160,9 @@ ApplicationWindow {
                             spacing: Theme.spacing.small
                             
                             Text {
-                                text: "📄 任务详情:"
+                                text: backend && backend.selectedTodoTitle 
+                                      ? backend.selectedTodoTitle
+                                      : "📄 任务详情"
                                 font.bold: true
                                 font.pixelSize: Theme.fonts.medium
                                 font.family: Theme.fonts.family
