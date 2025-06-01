@@ -5,24 +5,48 @@ from typing import List, Dict, Any, Optional
 class TodoItem:
     """TODO项目数据结构"""
     
-    def __init__(self, title: str, content: str = "", level: int = 1, parent: Optional['TodoItem'] = None):
+    def __init__(self, title: str, content: str = "", level: int = 1, parent: Optional['TodoItem'] = None, attributes: Optional[Dict[str, str]] = None):
         self.title = title
         self.content = content
         self.level = level
         self.parent = parent
         self.children: List['TodoItem'] = []
+        self.attributes = attributes or {}
     
     def add_child(self, child: 'TodoItem'):
         """添加子项目"""
         child.parent = self
         self.children.append(child)
     
+    @property
+    def is_done(self) -> bool:
+        """检查任务是否完成"""
+        return self.attributes.get('state', '').lower() == 'done'
+    
+    @property
+    def display_title(self) -> str:
+        """获取显示标题，如果完成则添加✅"""
+        if self.is_done:
+            return f"✅ {self.title}"
+        return self.title
+    
+    def get_attribute(self, key: str, default: str = "") -> str:
+        """获取属性值"""
+        return self.attributes.get(key, default)
+    
+    def set_attribute(self, key: str, value: str):
+        """设置属性值"""
+        self.attributes[key] = value
+    
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典格式"""
         return {
             "title": self.title,
+            "display_title": self.display_title,
             "content": self.content,
             "level": self.level,
+            "attributes": self.attributes,
+            "is_done": self.is_done,
             "children": [child.to_dict() for child in self.children]
         }
 
@@ -46,6 +70,20 @@ class TodoParser:
             print(f"Warning: Could not read TODO file {file_path}: {e}")
             return []
     
+    def _parse_attributes(self, lines: List[str]) -> Dict[str, str]:
+        """解析属性行，返回属性字典"""
+        attributes = {}
+        for line in lines:
+            line = line.strip()
+            if '=' in line and not line.startswith('#'):
+                # 匹配 key=value 格式
+                match = re.match(r'^([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(.*)$', line)
+                if match:
+                    key = match.group(1)
+                    value = match.group(2).strip()
+                    attributes[key] = value
+        return attributes
+    
     def parse_content(self, content: str) -> List[TodoItem]:
         """解析TODO内容"""
         lines = content.split('\n')
@@ -53,7 +91,10 @@ class TodoParser:
         current_stack: List[TodoItem] = []
         current_content_lines = []
         
-        for line in lines:
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            
             # 检查是否是标题行
             header_match = re.match(r'^(#{1,6})\s+(.+)$', line.strip())
             
@@ -67,8 +108,31 @@ class TodoParser:
                 level = len(header_match.group(1))
                 title = header_match.group(2).strip()
                 
+                # 查找紧跟标题的属性行
+                attributes = {}
+                j = i + 1
+                attribute_lines = []
+                
+                # 收集紧跟标题的属性行（直到遇到空行、下一个标题或内容）
+                while j < len(lines):
+                    next_line = lines[j].strip()
+                    if not next_line:  # 空行，停止收集属性
+                        break
+                    if re.match(r'^#{1,6}\s+', next_line):  # 下一个标题，停止收集
+                        break
+                    if '=' in next_line and not next_line.startswith('#'):
+                        attribute_lines.append(lines[j])
+                        j += 1
+                    else:
+                        break
+                
+                # 解析属性
+                if attribute_lines:
+                    attributes = self._parse_attributes(attribute_lines)
+                    i = j - 1  # 调整索引，因为for循环会+1
+                
                 # 创建新的TODO项目
-                todo_item = TodoItem(title=title, level=level)
+                todo_item = TodoItem(title=title, level=level, attributes=attributes)
                 
                 # 调整栈结构
                 while current_stack and current_stack[-1].level >= level:
@@ -84,6 +148,8 @@ class TodoParser:
             
             elif line.strip():  # 非空行作为内容
                 current_content_lines.append(line)
+            
+            i += 1
         
         # 处理最后的内容
         if current_stack and current_content_lines:
