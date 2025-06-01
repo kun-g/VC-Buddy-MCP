@@ -1,0 +1,7 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Rule: Always update docs/ProjectStructure.md whenever files are added, moved, or removed.
+The file documents the project structure as a tree, with brief descriptions for each file or folder.

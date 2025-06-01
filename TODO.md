@@ -39,3 +39,10 @@ https://doc.qt.io/qt-6/stylesheet.html
 # 单元测试
 
 ## 给 todo_parser.py 实现单元测试
+
+# 语音输入
+## 支持语音输入
+
+# 支持 SSE 模式
+
+# 设置许可证
