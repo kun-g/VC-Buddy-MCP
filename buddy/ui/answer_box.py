@@ -13,12 +13,14 @@ from PySide6.QtGui import QKeySequence, QShortcut, QAction
 try:
     from .config import config_manager, get_project_config_manager
     from .todo_parser import TodoParser, TodoItem
+    from .voice_recorder import VoiceButton
 except ImportError:
     # 如果作为脚本直接运行，需要添加路径
     current_dir = Path(__file__).parent
     sys.path.insert(0, str(current_dir))
     from config import config_manager, get_project_config_manager
     from todo_parser import TodoParser, TodoItem
+    from voice_recorder import VoiceButton
 
 # --- 设置工具类 ---
 class SettingsManager:
@@ -183,6 +185,9 @@ class AnswerBox(QDialog):
             input_label.setStyleSheet("font-weight: bold; color: #333; margin-bottom: 4px;")
             self.layout.addWidget(input_label)
             
+            # 创建输入区域的水平布局
+            input_container = QHBoxLayout()
+            
             self.input = QTextEdit()
             self.input.setStyleSheet("""
                 QTextEdit {
@@ -191,8 +196,21 @@ class AnswerBox(QDialog):
                     padding: 8px;
                     font-size: 12px;
                 }
+                QTextEdit:focus {
+                    border: 2px solid #2196f3;
+                }
             """)
-            self.layout.addWidget(self.input)
+            input_container.addWidget(self.input)
+            
+            # 添加语音按钮
+            self.voice_button = VoiceButton()
+            self.voice_button.connect_transcription_ready(self._on_voice_transcription)
+            input_container.addWidget(self.voice_button)
+            
+            # 将水平布局添加到主布局
+            input_widget = QWidget()
+            input_widget.setLayout(input_container)
+            self.layout.addWidget(input_widget)
             
             # Commit复选框
             self.commit_checkbox = QCheckBox("📝 Commit - 要求先提交修改的文件")
@@ -278,6 +296,9 @@ class AnswerBox(QDialog):
         input_label.setStyleSheet("font-weight: bold; color: #333; margin-top: 8px; margin-bottom: 4px;")
         layout.addWidget(input_label)
         
+        # 创建输入区域的水平布局
+        input_container = QHBoxLayout()
+        
         self.input = QTextEdit()
         self.input.setStyleSheet("""
             QTextEdit {
@@ -290,7 +311,17 @@ class AnswerBox(QDialog):
                 border: 2px solid #2196f3;
             }
         """)
-        layout.addWidget(self.input)
+        input_container.addWidget(self.input)
+        
+        # 添加语音按钮
+        self.voice_button = VoiceButton()
+        self.voice_button.connect_transcription_ready(self._on_voice_transcription)
+        input_container.addWidget(self.voice_button)
+        
+        # 将水平布局添加到主布局
+        input_widget = QWidget()
+        input_widget.setLayout(input_container)
+        layout.addWidget(input_widget)
         
         # Commit复选框
         self.commit_checkbox = QCheckBox("📝 Commit - 要求先提交修改的文件")
@@ -475,6 +506,22 @@ class AnswerBox(QDialog):
                 QMessageBox.warning(self, "文件未找到", "在项目目录中未找到TODO.md文件。")
         except Exception as e:
             QMessageBox.critical(self, "保存错误", f"保存TODO文件时发生错误：{str(e)}")
+
+    def _on_voice_transcription(self, transcription: str):
+        """处理语音转写结果"""
+        if transcription.strip():
+            # 获取当前输入框内容
+            current_text = self.input.toPlainText()
+            
+            # 如果输入框不为空，添加换行
+            if current_text.strip():
+                transcription = "\n\n" + transcription
+            
+            # 添加转写结果到输入框
+            self.input.append(transcription)
+            
+            # 将焦点设置到输入框
+            self.input.setFocus()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
