@@ -30,3 +30,11 @@ state=done
 ## make 更智能一些
 make install 更智能一些，能根据系统安装额外的依赖
 其他 make 不用每次都 install ，可以失败时
+
+## 需要一个setup命令
+需要一个命令来设置项目环境
+比如npx vcbuddy setup .
+就在当前目录设置cursor rule
+测试一下没有
+
+# 测试一下没有TODO.md文件是什么情况

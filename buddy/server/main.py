@@ -46,12 +46,8 @@ def ask_for_feedback(
     Returns:
         用户的反馈内容，JSON格式的字符串，包含result字段
     """
-    print("ask_for_feedback", summary, "project_directory:", project_directory)
-    
     # 准备传递给answer_box的数据
-    input_data = {"summary": summary}
-    if project_directory:
-        input_data["project_directory"] = project_directory
+    input_data = {"summary": summary, "project_directory": project_directory}
     
     # 启动 ui/answer_box.py,获取 stdout
     process = subprocess.Popen(
@@ -60,7 +56,6 @@ def ask_for_feedback(
         stdout=subprocess.PIPE, 
         stdin=subprocess.PIPE, 
         text=True,
-        cwd=project_directory if project_directory and os.path.exists(project_directory) else None
     )
     process.stdin.write(json.dumps(input_data, ensure_ascii=False))
     process.stdin.flush()
