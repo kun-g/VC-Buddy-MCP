@@ -230,7 +230,7 @@ uv add pyaudio
 
 ## 📄 许可证
 
-MIT License - 详见 LICENSE 文件
+本项目基于 [MIT License](./LICENSE) 开源许可证发布。
 
 ---
 
