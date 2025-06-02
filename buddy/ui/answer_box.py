@@ -264,7 +264,7 @@ class AnswerBox(QDialog):
         button_container.addWidget(self.button)
         
         # 添加语音按钮（在发送按钮右边）
-        self.voice_button = VoiceButton()
+        self.voice_button = VoiceButton(config_manager=self.config_mgr)
         self.voice_button.connect_transcription_ready(self._on_voice_transcription)
         button_container.addWidget(self.voice_button)
         

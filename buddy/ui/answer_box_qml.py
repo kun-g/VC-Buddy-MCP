@@ -151,8 +151,8 @@ class AnswerBoxBackend(QObject):
         self._selected_todo_detail = "选择一个任务查看详情"
         self._selected_todo_title = None
         
-        # 初始化录音器
-        self._voice_recorder = VoiceRecorder()
+        # 初始化录音器（传入配置管理器）
+        self._voice_recorder = VoiceRecorder(config_manager=self._config_mgr)
         self._is_recording = False
         
         # 连接录音器信号
