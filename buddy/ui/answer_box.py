@@ -6,21 +6,25 @@ from PySide6.QtWidgets import (QApplication, QPushButton, QDialog, QLabel,
                                QVBoxLayout, QTextEdit, QTreeWidget, QTreeWidgetItem,
                                QHBoxLayout, QSplitter, QTextBrowser, QCheckBox, QMenu, 
                                QMessageBox, QWidget)
-from PySide6.QtCore import QSettings, Qt, QByteArray
-from PySide6.QtGui import QKeySequence, QShortcut, QAction
+from PySide6.QtCore import QSettings, Qt, QByteArray, QTimer, Signal, QPoint
+from PySide6.QtGui import QKeySequence, QShortcut, QAction, QFont, QPixmap, QIcon
 
 # 处理相对导入问题
 try:
     from .config import config_manager, get_project_config_manager
     from .todo_parser import TodoParser, TodoItem
-    from .voice_recorder import VoiceButton
+    from .voice_recorder import VoiceButton, PlayButton
+    from .style_manager import StyleManager, load_default_styles
+    from ..core.analytics import get_analytics_manager, track_app_opened, track_button_clicked, track_todo_action, track_voice_action, track_shortcut_used
 except ImportError:
     # 如果作为脚本直接运行，需要添加路径
-    current_dir = Path(__file__).parent
-    sys.path.insert(0, str(current_dir))
-    from config import config_manager, get_project_config_manager
-    from todo_parser import TodoParser, TodoItem
-    from voice_recorder import VoiceButton
+    project_root = Path(__file__).parent.parent
+    sys.path.insert(0, str(project_root))
+    from ui.config import config_manager, get_project_config_manager
+    from ui.todo_parser import TodoParser, TodoItem
+    from ui.voice_recorder import VoiceButton, PlayButton  
+    from ui.style_manager import StyleManager, load_default_styles
+    from core.analytics import get_analytics_manager, track_app_opened, track_button_clicked, track_todo_action, track_voice_action, track_shortcut_used
 
 # --- 设置工具类 ---
 class SettingsManager:
@@ -65,6 +69,9 @@ class AnswerBox(QDialog):
         self.app = app or QApplication.instance() or QApplication(sys.argv)
         self.setWindowTitle("Answer Box")
         
+        # 初始化统计管理器
+        self._analytics = get_analytics_manager()
+        
         # 读取输入数据
         summary = ""
         while True:
@@ -78,6 +85,12 @@ class AnswerBox(QDialog):
         # 解析输入数据
         self.summary_text = data.get("summary", "")
         self.project_directory = data.get("project_directory", None)
+        
+        # 统计应用打开
+        if self.project_directory:
+            track_app_opened(source="project")
+        else:
+            track_app_opened(source="general")
         
         # 根据项目目录获取配置管理器
         if self.project_directory:
@@ -262,9 +275,14 @@ class AnswerBox(QDialog):
         
         # 设置 Ctrl+Enter 快捷键
         self.send_shortcut = QShortcut(QKeySequence("Ctrl+Return"), self)
-        self.send_shortcut.activated.connect(self.respond)
+        self.send_shortcut.activated.connect(self._on_send_shortcut_activated)
         
         self.setLayout(self.layout)
+
+    def _on_send_shortcut_activated(self):
+        """处理发送快捷键激活"""
+        track_shortcut_used("Ctrl+Enter", "send_response")
+        self.respond()
 
     def _create_right_panel(self):
         """创建右侧面板"""
@@ -364,6 +382,9 @@ class AnswerBox(QDialog):
         """处理TODO项目点击事件"""
         todo_item = item.data(0, Qt.UserRole)
         if todo_item and hasattr(self, 'todo_detail'):
+            # 统计TODO点击
+            track_todo_action("click", todo_item.title, todo_item.level)
+            
             # 显示任务详情
             detail_text = f"<h3>{todo_item.title}</h3>"
             if todo_item.content:
@@ -377,6 +398,9 @@ class AnswerBox(QDialog):
         """处理TODO项目双击事件 - 插入说明到输入框"""
         todo_item = item.data(0, Qt.UserRole)
         if todo_item and hasattr(self, 'input'):
+            # 统计TODO双击
+            track_todo_action("double_click", todo_item.title, todo_item.level)
+            
             # 获取当前输入框内容
             current_text = self.input.toPlainText()
             
@@ -398,6 +422,9 @@ class AnswerBox(QDialog):
             self.input.setFocus()
 
     def respond(self):
+        # 统计发送按钮点击
+        track_button_clicked("send", "main_window")
+        
         # 获取用户输入的反馈内容
         feedback_text = self.input.toPlainText()
         
@@ -438,6 +465,9 @@ class AnswerBox(QDialog):
         if not todo_item:
             return
         
+        # 统计右键菜单使用
+        track_todo_action("context_menu", todo_item.title, todo_item.level)
+        
         menu = QMenu()
         
         # 完成/取消完成动作
@@ -455,12 +485,14 @@ class AnswerBox(QDialog):
     
     def _mark_todo_done(self, todo_item: TodoItem, tree_item: QTreeWidgetItem):
         """标记TODO任务为完成"""
+        track_todo_action("mark_done", todo_item.title, todo_item.level)
         todo_item.mark_as_done()
         self._update_todo_display(tree_item, todo_item)
         self._save_todos_to_file()
     
     def _mark_todo_undone(self, todo_item: TodoItem, tree_item: QTreeWidgetItem):
         """标记TODO任务为未完成"""
+        track_todo_action("mark_undone", todo_item.title, todo_item.level)
         todo_item.mark_as_undone()
         self._update_todo_display(tree_item, todo_item)
         self._save_todos_to_file()
@@ -496,6 +528,8 @@ class AnswerBox(QDialog):
 
     def _on_voice_transcription(self, transcription: str):
         """处理语音转写结果"""
+        track_voice_action("transcription_completed")
+        
         if transcription.strip():
             # 获取当前输入框内容
             current_text = self.input.toPlainText()

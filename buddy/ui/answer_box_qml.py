@@ -2,7 +2,7 @@ import sys
 import json
 import os
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 from PySide6.QtCore import QObject, Signal, Slot, Property, QAbstractListModel, QModelIndex, Qt, QSettings
 from PySide6.QtGui import QGuiApplication
@@ -14,14 +14,16 @@ try:
     from .todo_parser import TodoParser, TodoItem
     from .style_manager import StyleManager, load_default_styles
     from .voice_recorder import VoiceRecorder
+    from ..core.analytics import get_analytics_manager, track_app_opened, track_button_clicked, track_todo_action, track_voice_action
 except ImportError:
     # 如果作为脚本直接运行，需要添加路径
     current_dir = Path(__file__).parent
-    sys.path.insert(0, str(current_dir))
-    from config import config_manager, get_project_config_manager
-    from todo_parser import TodoParser, TodoItem
-    from style_manager import StyleManager, load_default_styles
-    from voice_recorder import VoiceRecorder
+    sys.path.insert(0, str(current_dir.parent))  # 添加buddy目录到路径
+    from ui.config import config_manager, get_project_config_manager
+    from ui.todo_parser import TodoParser, TodoItem
+    from ui.style_manager import StyleManager, load_default_styles
+    from ui.voice_recorder import VoiceRecorder
+    from core.analytics import get_analytics_manager, track_app_opened, track_button_clicked, track_todo_action, track_voice_action
 
 
 class TodoListModel(QAbstractListModel):
@@ -159,6 +161,15 @@ class AnswerBoxBackend(QObject):
         self._voice_recorder.transcription_ready.connect(self._on_transcription_ready)
         self._voice_recorder.error_occurred.connect(self._on_voice_error)
         
+        # 初始化统计管理器
+        self._analytics = get_analytics_manager()
+        
+        # 统计应用打开
+        if self._project_directory:
+            track_app_opened(source="project")
+        else:
+            track_app_opened(source="general")
+        
     # 属性定义
     @Property(str, constant=True)
     def summaryText(self):
@@ -240,8 +251,12 @@ class AnswerBoxBackend(QObject):
         """切换录音状态"""
         if self._is_recording:
             self._voice_recorder.stop_recording()
+            track_voice_action("stop_recording")
+            track_button_clicked("stop_recording", "voice_panel")
         else:
             self._voice_recorder.start_recording()
+            track_voice_action("start_recording")
+            track_button_clicked("start_recording", "voice_panel")
     
     def _on_recording_started(self):
         """录音开始时的处理"""
@@ -255,6 +270,7 @@ class AnswerBoxBackend(QObject):
     
     def _on_transcription_ready(self, transcription: str):
         """转写完成时的处理"""
+        track_voice_action("transcription_completed")
         self.voiceTranscriptionReady.emit(transcription)
     
     def _on_voice_error(self, error_message: str):
@@ -267,6 +283,8 @@ class AnswerBoxBackend(QObject):
     @Slot(int)
     def selectTodoItem(self, index: int):
         """选择TODO项目"""
+        track_todo_action("click", todo_level=1)
+        
         todo_item = self._todo_model.getTodoItem(index)
         if todo_item:
             # 设置选中的标题
