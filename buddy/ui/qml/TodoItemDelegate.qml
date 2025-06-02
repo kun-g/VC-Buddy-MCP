@@ -176,7 +176,7 @@ Item {
             anchors.leftMargin: Theme.spacing.small + (indentLevel * Theme.spacing.large)
             spacing: Theme.spacing.tiny
             
-            // 标题行
+            // 标题行（简化版，只显示标题）
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.spacing.small
@@ -202,13 +202,13 @@ Item {
                     wrapMode: Text.WordWrap
                 }
                 
-                // 完成状态指示器
+                // 完成状态指示器（简化版）
                 Rectangle {
                     width: Theme.spacing.normal
                     height: Theme.spacing.normal
                     radius: Theme.spacing.small
                     color: todoItem && todoItem.is_done ? Theme.colors.success : Theme.colors.disabled
-                    visible: todoItem && todoItem.attributes && Object.keys(todoItem.attributes).length > 0
+                    visible: todoItem
                     
                     Behavior on color {
                         ColorAnimation {
@@ -217,63 +217,6 @@ Item {
                         }
                     }
                 }
-            }
-            
-            // 属性显示
-            Repeater {
-                model: {
-                    if (todoItem && todoItem.attributes) {
-                        return Object.keys(todoItem.attributes)
-                    }
-                    return []
-                }
-                
-                RowLayout {
-                    Layout.fillWidth: true
-                    Layout.leftMargin: indentLevel * Theme.spacing.large
-                    spacing: Theme.spacing.small
-                    
-                    Text {
-                        text: "📌"
-                        font.pixelSize: Theme.fonts.small
-                        color: Theme.colors.textSecondary
-                    }
-                    
-                    Text {
-                        text: modelData + ":"
-                        font.pixelSize: Theme.fonts.small
-                        font.family: Theme.fonts.family
-                        font.bold: true
-                        color: Theme.colors.textSecondary
-                    }
-                    
-                    Text {
-                        Layout.fillWidth: true
-                        text: todoItem && todoItem.attributes ? todoItem.attributes[modelData] : ""
-                        font.pixelSize: Theme.fonts.small
-                        font.family: Theme.fonts.family
-                        color: Theme.colors.textHint
-                        wrapMode: Text.WordWrap
-                    }
-                }
-            }
-            
-            // 内容预览（如果有的话）
-            Text {
-                Layout.fillWidth: true
-                Layout.leftMargin: indentLevel * Theme.spacing.large
-                text: {
-                    if (todoItem && todoItem.content) {
-                        var content = todoItem.content.toString()
-                        return content.length > 100 ? content.substring(0, 100) + "..." : content
-                    }
-                    return ""
-                }
-                font.pixelSize: Theme.fonts.small
-                font.family: Theme.fonts.family
-                color: Theme.colors.textSecondary
-                wrapMode: Text.WordWrap
-                visible: todoItem && todoItem.content && todoItem.content.toString().trim() !== ""
             }
         }
     }
