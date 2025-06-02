@@ -8,7 +8,7 @@
 import sys
 import os
 from PySide6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, 
-                               QHBoxLayout, QWidget, QTextEdit, QLabel)
+                               QHBoxLayout, QWidget, QTextEdit, QLabel, QPushButton)
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 
@@ -17,6 +17,8 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
 from buddy.ui.voice_recorder import VoiceButton, PlayButton
+from buddy.ui.config import ConfigManager
+from settings_dialog import SettingsDialog
 
 
 class VoiceRecorderTestWindow(QMainWindow):
@@ -24,12 +26,14 @@ class VoiceRecorderTestWindow(QMainWindow):
     
     def __init__(self):
         super().__init__()
+        # 初始化配置管理器
+        self.config_manager = ConfigManager()
         self.init_ui()
         
     def init_ui(self):
         """初始化界面"""
         self.setWindowTitle("语音录制器测试工具")
-        self.setGeometry(100, 100, 600, 450)
+        self.setGeometry(100, 100, 600, 500)
         
         # 创建中央组件
         central_widget = QWidget()
@@ -40,21 +44,46 @@ class VoiceRecorderTestWindow(QMainWindow):
         main_layout.setSpacing(20)
         main_layout.setContentsMargins(20, 20, 20, 20)
         
-        # 标题
+        # 标题和设置按钮行
+        title_layout = QHBoxLayout()
+        
         title_label = QLabel("语音录制器测试工具")
         title_label.setAlignment(Qt.AlignCenter)
         title_font = QFont()
         title_font.setPointSize(18)
         title_font.setBold(True)
         title_label.setFont(title_font)
-        main_layout.addWidget(title_label)
+        title_layout.addWidget(title_label)
+        
+        # 设置按钮
+        self.settings_btn = QPushButton("⚙️ 设置")
+        self.settings_btn.setFixedSize(80, 35)
+        self.settings_btn.clicked.connect(self.open_settings)
+        self.settings_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #f8f9fa;
+                border: 1px solid #dee2e6;
+                border-radius: 6px;
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+            QPushButton:hover {
+                background-color: #e9ecef;
+            }
+            QPushButton:pressed {
+                background-color: #dee2e6;
+            }
+        """)
+        title_layout.addWidget(self.settings_btn)
+        
+        main_layout.addLayout(title_layout)
         
         # 按钮区域
         button_layout = QHBoxLayout()
         button_layout.addStretch()
         
-        # 创建语音按钮
-        self.voice_button = VoiceButton()
+        # 创建语音按钮（传入配置管理器）
+        self.voice_button = VoiceButton(config_manager=self.config_manager)
         self.voice_button.connect_transcription_ready(self.on_transcription_ready)
         button_layout.addWidget(self.voice_button)
         
@@ -86,6 +115,13 @@ class VoiceRecorderTestWindow(QMainWindow):
         
         button_info_layout.addStretch()
         main_layout.addLayout(button_info_layout)
+        
+        # API Key 状态显示
+        self.api_status_label = QLabel()
+        self.update_api_status_display()
+        self.api_status_label.setAlignment(Qt.AlignCenter)
+        self.api_status_label.setStyleSheet("font-size: 13px; padding: 8px; border-radius: 4px; margin: 5px;")
+        main_layout.addWidget(self.api_status_label)
         
         # 说明文字
         instruction_label = QLabel("点击麦克风按钮开始录音，再次点击停止录音并进行语音转写\n录音完成后，可以点击喇叭按钮播放录音")
@@ -135,6 +171,32 @@ class VoiceRecorderTestWindow(QMainWindow):
             }
         """)
     
+    def update_api_status_display(self):
+        """更新API Key状态显示"""
+        if self.config_manager.has_openai_api_key():
+            self.api_status_label.setText("✅ OpenAI API Key 已配置，语音转写功能可用")
+            self.api_status_label.setStyleSheet(
+                "color: #155724; background-color: #d4edda; border: 1px solid #c3e6cb; "
+                "font-size: 13px; padding: 8px; border-radius: 4px; margin: 5px;"
+            )
+        else:
+            self.api_status_label.setText("⚠️ 未配置 OpenAI API Key，语音转写功能不可用（录音和播放功能正常）")
+            self.api_status_label.setStyleSheet(
+                "color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; "
+                "font-size: 13px; padding: 8px; border-radius: 4px; margin: 5px;"
+            )
+    
+    def open_settings(self):
+        """打开设置对话框"""
+        dialog = SettingsDialog(self.config_manager, self)
+        if dialog.exec() == SettingsDialog.Accepted:
+            # 设置保存后，更新录音器的API配置
+            api_key = self.config_manager.openai_api_key
+            api_url = self.config_manager.openai_api_url
+            self.voice_button.recorder.update_api_config(api_key, api_url)
+            # 更新状态显示
+            self.update_api_status_display()
+    
     def on_transcription_ready(self, text: str):
         """处理转写结果"""
         current_text = self.result_text.toPlainText()
@@ -161,8 +223,12 @@ class VoiceRecorderTestWindow(QMainWindow):
     
     def on_recording_stopped(self):
         """录音停止时的处理"""
-        self.status_label.setText("录音完成，正在转写...")
-        self.status_label.setStyleSheet("color: #FF9800; font-size: 12px; padding: 5px;")
+        if self.config_manager.has_openai_api_key():
+            self.status_label.setText("录音完成，正在转写...")
+            self.status_label.setStyleSheet("color: #FF9800; font-size: 12px; padding: 5px;")
+        else:
+            self.status_label.setText("录音完成，但未配置 API Key，无法转写")
+            self.status_label.setStyleSheet("color: #FF5722; font-size: 12px; padding: 5px;")
     
     def on_audio_saved(self, file_path: str):
         """音频保存完成时的处理"""
@@ -264,33 +330,10 @@ def main():
     if not check_audio_permissions():
         print("提示：如果是权限问题，请在系统设置中允许应用访问麦克风和扬声器")
     
-    # 检查 OpenAI API Key
-    api_key_available = bool(os.getenv('OPENAI_API_KEY'))
-    if api_key_available:
-        print("✅ 检测到 OPENAI_API_KEY，语音转写功能可用")
-    else:
-        print("⚠️  未检测到 OPENAI_API_KEY，语音转写功能不可用")
-        print("   录音和播放功能不受影响")
-        print("   设置方法: export OPENAI_API_KEY='your-api-key'")
-    
     print("=" * 50)
     print("启动图形界面...")
     
     app = QApplication(sys.argv)
-    
-    # 如果没有 API Key，显示配置提醒
-    if not api_key_available:
-        from PySide6.QtWidgets import QMessageBox
-        msg = QMessageBox()
-        msg.setIcon(QMessageBox.Information)
-        msg.setWindowTitle("配置提醒")
-        msg.setText("语音转写功能需要 OpenAI API Key")
-        msg.setInformativeText("未检测到 OPENAI_API_KEY 环境变量。\n\n"
-                              "录音和播放功能可以正常使用，但语音转写功能不可用。\n\n"
-                              "如需使用语音转写，请设置环境变量:\n"
-                              "export OPENAI_API_KEY='your-api-key'")
-        msg.setStandardButtons(QMessageBox.Ok)
-        msg.exec()
     
     window = VoiceRecorderTestWindow()
     window.show()

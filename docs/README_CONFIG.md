@@ -14,10 +14,17 @@ settings = QSettings("MyCompany", "AnswerBoxApp")
 
 配置值的优先级从高到低：
 1. **项目目录配置** - `{project_directory}/.vc-buddy/config.json`
-2. **环境变量**
-3. **环境变量指定的配置文件** - `$VC_BUDDY_CONFIG`
-4. **用户主目录配置** - `~/.vc-buddy/config.json`
+2. **环境变量指定的配置文件** - `$VC_BUDDY_CONFIG`
+3. **用户主目录配置** - `~/.vc-buddy/config.json`
+4. **环境变量**
 5. **默认值**
+
+**特殊说明**：对于OpenAI API配置，优先级为：
+1. **配置文件中的设置** - `openai.api_key` 和 `openai.api_url`
+2. **环境变量** - `OPENAI_API_KEY` 和 `OPENAI_API_URL`
+3. **默认值**
+
+这样设计是为了让用户通过图形界面设置的配置能够覆盖环境变量。
 
 ## 环境变量
 
