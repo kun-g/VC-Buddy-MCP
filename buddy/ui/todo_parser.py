@@ -170,57 +170,20 @@ class TodoParser:
             header_match = re.match(r'^(#{1,6})\s+(.+)$', line.strip())
             
             if header_match:
-                # 处理之前积累的内容
+                # 处理之前积累的内容和属性
                 if current_stack and current_content_lines:
-                    current_stack[-1].content = '\n'.join(current_content_lines).strip()
+                    # 分离内容和属性
+                    content_lines, attributes = self._extract_content_and_attributes(current_content_lines)
+                    current_stack[-1].content = '\n'.join(content_lines).strip()
+                    current_stack[-1].attributes.update(attributes)
                     current_content_lines = []
                 
                 # 解析新标题
                 level = len(header_match.group(1))
                 title = header_match.group(2).strip()
                 
-                # 查找紧跟标题的属性行
-                attributes = {}
-                j = i + 1
-                attribute_lines = []
-                content_started = False
-                
-                # 收集属性行（跳过内容行，直到遇到下一个标题）
-                while j < len(lines):
-                    next_line = lines[j].strip()
-                    if not next_line:  # 空行，跳过但不停止
-                        j += 1
-                        continue
-                    if re.match(r'^#{1,6}\s+', next_line):  # 下一个标题，停止收集
-                        break
-                    
-                    # 检查是否是属性行
-                    if '=' in next_line and not next_line.startswith('#'):
-                        # 如果已经开始收集内容，但又遇到属性行，则这些属性行应该被忽略
-                        # 只有在还没有收集到大量内容的情况下才认为是属性
-                        if not content_started:
-                            attribute_lines.append(lines[j])
-                    else:
-                        # 非属性行，标记内容开始
-                        # 但我们允许在开始的几行内容中穿插属性
-                        if not content_started and len(attribute_lines) == 0:
-                            # 如果还没有找到任何属性，继续寻找
-                            pass
-                        else:
-                            content_started = True
-                            # 如果已经找到一些属性，遇到内容行就停止
-                            if attribute_lines:
-                                break
-                    
-                    j += 1
-                
-                # 解析属性
-                if attribute_lines:
-                    attributes = self._parse_attributes(attribute_lines)
-                    i = j - 1  # 调整索引，因为for循环会+1
-                
                 # 创建新的TODO项目
-                todo_item = TodoItem(title=title, level=level, attributes=attributes)
+                todo_item = TodoItem(title=title, level=level)
                 
                 # 调整栈结构
                 while current_stack and current_stack[-1].level >= level:
@@ -239,11 +202,35 @@ class TodoParser:
             
             i += 1
         
-        # 处理最后的内容
+        # 处理最后的内容和属性
         if current_stack and current_content_lines:
-            current_stack[-1].content = '\n'.join(current_content_lines).strip()
+            content_lines, attributes = self._extract_content_and_attributes(current_content_lines)
+            current_stack[-1].content = '\n'.join(content_lines).strip()
+            current_stack[-1].attributes.update(attributes)
         
         return self.root_items
+    
+    def _extract_content_and_attributes(self, lines: List[str]) -> tuple[List[str], Dict[str, str]]:
+        """从行列表中提取内容和属性"""
+        content_lines = []
+        attributes = {}
+        
+        for line in lines:
+            stripped_line = line.strip()
+            
+            # 检查是否是属性行 (key=value格式)
+            if '=' in stripped_line and not stripped_line.startswith('#'):
+                match = re.match(r'^([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(.*)$', stripped_line)
+                if match:
+                    key = match.group(1)
+                    value = match.group(2).strip()
+                    attributes[key] = value
+                    continue
+            
+            # 如果不是属性行，就是内容行
+            content_lines.append(line)
+        
+        return content_lines, attributes
     
     def find_todo_file(self, project_directory: str) -> Optional[str]:
         """在项目目录中查找TODO.md文件"""
