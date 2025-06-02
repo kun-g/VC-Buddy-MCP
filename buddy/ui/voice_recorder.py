@@ -81,6 +81,13 @@ class VoiceRecorder(QObject):
                 api_url = os.getenv("OPENAI_API_URL", "https://api.openai.com/v1")
             
             if api_key:
+                # 确保API URL以/v1结尾（某些第三方服务器需要）
+                if api_url and not api_url.endswith('/v1'):
+                    if not api_url.endswith('/'):
+                        api_url += '/v1'
+                    else:
+                        api_url += 'v1'
+                
                 self.openai_client = OpenAI(
                     api_key=api_key,
                     base_url=api_url
@@ -132,8 +139,8 @@ class VoiceRecorder(QObject):
             # 发送录音开始信号
             self.recording_started.emit()
             
-            # 在新线程中录音
-            recording_thread = threading.Thread(target=self._record_audio)
+            # 在新线程中录音，设置为守护线程
+            recording_thread = threading.Thread(target=self._record_audio, daemon=True)
             recording_thread.start()
             
         except Exception as e:
@@ -210,8 +217,8 @@ class VoiceRecorder(QObject):
             self.error_occurred.emit("没有找到录音文件")
             return
         
-        # 在新线程中播放音频
-        play_thread = threading.Thread(target=self._play_audio_file, args=(self.last_audio_file,))
+        # 在新线程中播放音频，设置为守护线程
+        play_thread = threading.Thread(target=self._play_audio_file, args=(self.last_audio_file,), daemon=True)
         play_thread.start()
     
     def _play_audio_file(self, file_path: str):
@@ -249,8 +256,8 @@ class VoiceRecorder(QObject):
             self.error_occurred.emit("OpenAI API 未配置，无法进行语音转写")
             return
         
-        # 在新线程中进行转写
-        transcription_thread = threading.Thread(target=self._transcribe_audio)
+        # 在新线程中进行转写，设置为守护线程防止程序卡死
+        transcription_thread = threading.Thread(target=self._transcribe_audio, daemon=True)
         transcription_thread.start()
     
     def _transcribe_audio(self):
@@ -260,18 +267,69 @@ class VoiceRecorder(QObject):
                 self.error_occurred.emit("音频文件不存在，无法进行转写")
                 return
             
+            print(f"DEBUG: 开始转写音频文件: {self.last_audio_file}")
+            print(f"DEBUG: 使用API URL: {self.openai_client.base_url}")
+            
             # 调用 OpenAI Whisper API
             with open(self.last_audio_file, 'rb') as audio_file:
-                transcript = self.openai_client.audio.transcriptions.create(
-                    model="whisper-1",
-                    file=audio_file,
-                    language="zh"  # 指定中文
-                )
+                try:
+                    # 首先尝试标准的Whisper API调用
+                    transcript = self.openai_client.audio.transcriptions.create(
+                        model="whisper-1",
+                        file=audio_file,
+                        language="zh"  # 指定中文
+                    )
+                    print(f"DEBUG: API响应类型: {type(transcript)}")
+                    print(f"DEBUG: API响应内容: {transcript}")
+                except Exception as api_error:
+                    print(f"DEBUG: Whisper API调用异常: {api_error}")
+                    
+                    # 检查是否是第三方API服务器不支持Whisper的问题
+                    if "not found" in str(api_error).lower() or "404" in str(api_error):
+                        self.error_occurred.emit(f"第三方API服务器不支持Whisper音频转写功能。\n请使用支持Whisper API的服务器或联系管理员。\n错误详情: {str(api_error)}")
+                    elif "401" in str(api_error):
+                        self.error_occurred.emit(f"API密钥无效或权限不足: {str(api_error)}")
+                    elif "openai" in str(api_error).lower():
+                        self.error_occurred.emit(f"OpenAI客户端错误: {str(api_error)}")
+                    else:
+                        self.error_occurred.emit(f"API调用失败: {str(api_error)}")
+                    return
+            
+            # 处理不同格式的响应
+            transcription_text = ""
+            if hasattr(transcript, 'text'):
+                # 标准OpenAI API响应对象
+                transcription_text = transcript.text
+                print(f"DEBUG: 使用 .text 属性获取转写结果")
+            elif isinstance(transcript, str):
+                # 某些API服务器可能直接返回字符串
+                transcription_text = transcript
+                print(f"DEBUG: API直接返回字符串")
+            elif isinstance(transcript, dict) and 'text' in transcript:
+                # 字典格式响应
+                transcription_text = transcript['text']
+                print(f"DEBUG: 使用字典['text']获取转写结果")
+            else:
+                # 检查是否是HTML响应（表示API调用错误）
+                transcript_str = str(transcript)
+                if '<html' in transcript_str.lower() or '<!doctype html' in transcript_str.lower():
+                    self.error_occurred.emit("API返回HTML页面，可能是endpoint错误或API不支持Whisper格式")
+                    return
+                else:
+                    # 尝试转换为字符串
+                    transcription_text = transcript_str
+                    print(f"DEBUG: 转换为字符串: {transcription_text[:100]}...")
+            
+            print(f"DEBUG: 最终转写结果: {transcription_text}")
             
             # 发送转写结果
-            self.transcription_ready.emit(transcript.text)
+            if transcription_text.strip():
+                self.transcription_ready.emit(transcription_text)
+            else:
+                self.error_occurred.emit("语音转写结果为空")
             
         except Exception as e:
+            print(f"DEBUG: 转写过程异常: {e}")
             self.error_occurred.emit(f"语音转写失败: {str(e)}")
     
     def cleanup(self):
