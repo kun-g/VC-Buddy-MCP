@@ -1,14 +1,18 @@
 # Vibe Coding Buddy - MCP
 
-一个现代化的桌面编程助手，基于 **MCP (Model Context Protocol)** 和 **PySide6**，提供智能对话、语音交互和命令执行功能。现在支持 **FastMCP** 框架！
+<h1 align="center">Vibe Coding Buddy <sup>🚀 MCP Edition</sup></h1>
+<p align="center">
+  <em>A modern AI-powered coding assistant for your Vibe Coding</em><br>
+  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-blue.svg"/></a>
+  <a href="#"><img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-yellow.svg"/></a>
+  <!-- <a href="#"><img alt="CI" src="https://github.com/kun/vc-buddy/actions/workflows/ci.yml/badge.svg"/></a> -->
+</p>
 
- 受启发于[interactive-feedback-mcp](https://github.com/noopstudios/interactive-feedback-mcp)
-
-## ✨ 功能特性
+## ✨ Features
 
 - 🔄 **MCP 协议**：支持 stdio 
 - 🎨 **现代 UI**：PySide6 构建的响应式界面
-- 🎤 **语音交互**：录音转文字（Whisper API）
+- 🎤 **语音交互**：录音转文字
 
 ## 🚀 快速开始
 
