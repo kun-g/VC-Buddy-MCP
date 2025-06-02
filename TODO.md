@@ -16,17 +16,16 @@ TODO 列表只展示标题就可以，属性和详情不用展示在列表里
 # 语音输入
 
 ## 需要一个简单的界面来测试 voice_recorder.py
+state=done
+
+voice_recorder_test.py 要增加一个识别按钮
 
 ## 支持语音输入
 
 # 支持 SSE 模式
 
-# 设置许可证
-state=done
-
-补全 MIT 许可证信息
-
 # 新手友好
+
 ## make 更智能一些
 make install 更智能一些，能根据系统安装额外的依赖
 其他 make 不用每次都 install ，可以失败时

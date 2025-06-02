@@ -1,23 +1,34 @@
 import os
 import tempfile
 import threading
+import time
 import wave
+from pathlib import Path
 from typing import Optional, Callable
+
 import pyaudio
-import openai
-from PySide6.QtCore import QObject, Signal, QThread
+from PySide6.QtCore import QObject, Signal, QTimer
 from PySide6.QtWidgets import QPushButton, QMessageBox
 
-# 处理相对导入问题
+# 导入配置管理器和统计功能
 try:
     from .config import ConfigManager
+    from ..core.analytics import track_voice_action, track_button_clicked
 except ImportError:
-    # 如果作为脚本直接运行或被其他模块导入时的备选方案
+    # 如果作为脚本直接运行，需要添加路径
     import sys
-    from pathlib import Path
     current_dir = Path(__file__).parent
-    sys.path.insert(0, str(current_dir))
-    from config import ConfigManager
+    sys.path.insert(0, str(current_dir.parent))  # 添加buddy目录到路径
+    from ui.config import ConfigManager
+    from core.analytics import track_voice_action, track_button_clicked
+
+# 尝试导入OpenAI客户端
+try:
+    from openai import OpenAI
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+    print("Warning: OpenAI library not available. Voice transcription will be disabled.")
 
 
 class VoiceRecorder(QObject):
@@ -32,63 +43,68 @@ class VoiceRecorder(QObject):
     
     def __init__(self, config_manager: Optional[ConfigManager] = None):
         super().__init__()
-        self.config_manager = config_manager or ConfigManager()
+        
+        # 配置管理器
+        self.config_manager = config_manager
+        
+        # 录音参数
+        self.sample_rate = 16000
+        self.channels = 1
+        self.chunk_size = 1024
+        self.format = pyaudio.paInt16
+        
+        # 录音状态
         self.is_recording = False
         self.audio_data = []
-        self.stream = None
-        self.audio = None
-        self.last_audio_file = None  # 保存最后录制的音频文件路径
+        self.audio_stream = None
+        self.pyaudio_instance = None
         
-        # 音频参数
-        self.chunk = 1024
-        self.format = pyaudio.paInt16
-        self.channels = 1
-        self.rate = 16000
+        # 最后录制的音频文件路径
+        self.last_audio_file = None
         
-        # OpenAI 客户端
+        # 初始化OpenAI客户端
         self.openai_client = None
         self._init_openai_client()
     
     def _init_openai_client(self):
-        """初始化 OpenAI 客户端"""
-        api_key = self.config_manager.openai_api_key
-        api_url = self.config_manager.openai_api_url
+        """初始化OpenAI客户端"""
+        if not OPENAI_AVAILABLE:
+            return
         
-        if api_key:
-            try:
-                # 验证URL格式
-                if not api_url.startswith(('http://', 'https://')):
-                    print(f"Warning: Invalid API URL format: {api_url}")
-                    api_url = "https://api.openai.com/v1"
-                
-                # 如果使用默认URL，直接创建客户端；如果是自定义URL，需要设置base_url
-                if api_url == "https://api.openai.com/v1":
-                    self.openai_client = openai.OpenAI(api_key=api_key)
-                else:
-                    # 确保URL格式正确
-                    if not api_url.endswith('/v1'):
-                        if not api_url.endswith('/'):
-                            api_url += '/v1'
-                        else:
-                            api_url += 'v1'
-                    self.openai_client = openai.OpenAI(api_key=api_key, base_url=api_url)
-                
+        try:
+            if self.config_manager:
+                api_key = self.config_manager.get("openai.api_key")
+                api_url = self.config_manager.get("openai.api_url", "https://api.openai.com/v1")
+            else:
+                # 从环境变量获取
+                api_key = os.getenv("OPENAI_API_KEY")
+                api_url = os.getenv("OPENAI_API_URL", "https://api.openai.com/v1")
+            
+            if api_key:
+                self.openai_client = OpenAI(
+                    api_key=api_key,
+                    base_url=api_url
+                )
                 print(f"OpenAI client initialized with URL: {api_url}")
-            except Exception as e:
-                print(f"Warning: Failed to initialize OpenAI client: {e}")
-                self.openai_client = None
-        else:
-            print("Warning: OpenAI API Key not found in config or environment variables")
+            else:
+                print("Warning: OpenAI API key not found. Voice transcription will be disabled.")
+                
+        except Exception as e:
+            print(f"Error initializing OpenAI client: {e}")
+            self.openai_client = None
     
     def update_api_config(self, api_key: str, api_url: str = None):
-        """更新API配置并重新初始化客户端"""
-        self.config_manager.set_openai_api_key(api_key)
-        if api_url:
-            self.config_manager.set_openai_api_url(api_url)
-        self._init_openai_client()
+        """更新API配置"""
+        try:
+            self.openai_client = OpenAI(
+                api_key=api_key,
+                base_url=api_url or "https://api.openai.com/v1"
+            )
+        except Exception as e:
+            self.error_occurred.emit(f"更新API配置失败: {str(e)}")
     
     def update_api_key(self, api_key: str):
-        """更新API Key并重新初始化客户端（保持向后兼容）"""
+        """更新API密钥"""
         self.update_api_config(api_key)
     
     def start_recording(self):
@@ -97,26 +113,31 @@ class VoiceRecorder(QObject):
             return
         
         try:
-            self.audio = pyaudio.PyAudio()
-            self.stream = self.audio.open(
+            # 初始化PyAudio
+            self.pyaudio_instance = pyaudio.PyAudio()
+            
+            # 创建音频流
+            self.audio_stream = self.pyaudio_instance.open(
                 format=self.format,
                 channels=self.channels,
-                rate=self.rate,
+                rate=self.sample_rate,
                 input=True,
-                frames_per_buffer=self.chunk
+                frames_per_buffer=self.chunk_size
             )
             
-            self.is_recording = True
+            # 重置音频数据
             self.audio_data = []
+            self.is_recording = True
             
-            # 在新线程中录音
-            self.recording_thread = threading.Thread(target=self._record_audio)
-            self.recording_thread.start()
-            
+            # 发送录音开始信号
             self.recording_started.emit()
             
+            # 在新线程中录音
+            recording_thread = threading.Thread(target=self._record_audio)
+            recording_thread.start()
+            
         except Exception as e:
-            self.error_occurred.emit(f"录音启动失败: {str(e)}")
+            self.error_occurred.emit(f"开始录音失败: {str(e)}")
     
     def stop_recording(self):
         """停止录音"""
@@ -125,29 +146,32 @@ class VoiceRecorder(QObject):
         
         self.is_recording = False
         
-        # 等待录音线程结束
-        if hasattr(self, 'recording_thread'):
-            self.recording_thread.join()
-        
-        # 清理资源
-        if self.stream:
-            self.stream.stop_stream()
-            self.stream.close()
-        if self.audio:
-            self.audio.terminate()
-        
-        self.recording_stopped.emit()
-        
-        # 保存音频文件
-        if self.audio_data:
+        try:
+            # 停止音频流
+            if self.audio_stream:
+                self.audio_stream.stop_stream()
+                self.audio_stream.close()
+                self.audio_stream = None
+            
+            # 终止PyAudio
+            if self.pyaudio_instance:
+                self.pyaudio_instance.terminate()
+                self.pyaudio_instance = None
+            
+            # 发送录音停止信号
+            self.recording_stopped.emit()
+            
+            # 保存音频文件
             self._save_audio_file()
-            self._start_transcription()
+            
+        except Exception as e:
+            self.error_occurred.emit(f"停止录音失败: {str(e)}")
     
     def _record_audio(self):
         """录音线程函数"""
-        while self.is_recording:
+        while self.is_recording and self.audio_stream:
             try:
-                data = self.stream.read(self.chunk, exception_on_overflow=False)
+                data = self.audio_stream.read(self.chunk_size, exception_on_overflow=False)
                 self.audio_data.append(data)
             except Exception as e:
                 self.error_occurred.emit(f"录音过程中出错: {str(e)}")
@@ -155,20 +179,27 @@ class VoiceRecorder(QObject):
     
     def _save_audio_file(self):
         """保存音频文件"""
+        if not self.audio_data:
+            self.error_occurred.emit("没有录音数据可保存")
+            return
+        
         try:
-            # 创建临时文件保存录音
+            # 创建临时文件
             temp_file = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
-            self.last_audio_file = temp_file.name
             temp_file.close()
             
-            # 写入 WAV 文件
-            with wave.open(self.last_audio_file, 'wb') as wf:
+            # 保存为WAV文件
+            with wave.open(temp_file.name, 'wb') as wf:
                 wf.setnchannels(self.channels)
-                wf.setsampwidth(self.audio.get_sample_size(self.format))
-                wf.setframerate(self.rate)
+                wf.setsampwidth(pyaudio.get_sample_size(self.format))
+                wf.setframerate(self.sample_rate)
                 wf.writeframes(b''.join(self.audio_data))
             
-            self.audio_saved.emit(self.last_audio_file)
+            self.last_audio_file = temp_file.name
+            self.audio_saved.emit(temp_file.name)
+            
+            # 自动开始转写
+            self._start_transcription()
             
         except Exception as e:
             self.error_occurred.emit(f"保存音频文件失败: {str(e)}")
@@ -296,8 +327,12 @@ class VoiceButton(QPushButton):
     def _toggle_recording(self):
         """切换录音状态"""
         if self.recorder.is_recording:
+            track_voice_action("stop_recording")
+            track_button_clicked("voice_stop", "voice_panel")
             self.recorder.stop_recording()
         else:
+            track_voice_action("start_recording")
+            track_button_clicked("voice_start", "voice_panel")
             self.recorder.start_recording()
     
     def _on_recording_started(self):
@@ -318,6 +353,7 @@ class VoiceButton(QPushButton):
     
     def _on_error(self, error_message: str):
         """错误处理"""
+        track_voice_action("error")
         QMessageBox.warning(self, "语音录制错误", error_message)
         self._on_recording_stopped()  # 重置按钮状态
     
@@ -368,6 +404,8 @@ class PlayButton(QPushButton):
     
     def _play_audio(self):
         """播放音频"""
+        track_voice_action("play_recording")
+        track_button_clicked("voice_play", "voice_panel")
         self.voice_recorder.play_last_recording()
     
     def _on_audio_saved(self, file_path: str):

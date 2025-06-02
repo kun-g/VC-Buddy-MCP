@@ -474,6 +474,33 @@ https://doc.qt.io/qt-6/stylesheet.html
         self.assertEqual(qml_task.title, "引入QML")
         self.assertTrue(qml_task.is_done)
 
+    def test_real_todo_structure2(self):
+        """测试真实的TODO结构"""
+        content = """
+# 数据统计
+添加数据统计功能，参考：
+``` python
+from amplitude import Amplitude
+amplitude = Amplitude("19f4e9af0ddd8891fab01dd53202af2f")
+from amplitude import BaseEvent
+
+amplitude.track(
+    BaseEvent(
+        event_type="Sign Up",
+        device_id="<ENTER DEVICE ID>",
+        event_properties={
+            "source": "notification"
+        }
+    )
+)
+```
+"""
+        parser = TodoParser()
+        todos = parser.parse_content(content)
+
+        self.assertEqual(len(todos), 1)
+        self.assertEqual(todos[0].title, "数据统计")
+        self.assertTrue(todos[0].content.startswith("添加数据统计功能，参考："))
 
 if __name__ == '__main__':
     # 运行测试
