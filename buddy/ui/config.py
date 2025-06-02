@@ -95,6 +95,10 @@ class ConfigManager:
                     "remember_position": True,
                     "stay_on_top": True
                 }
+            },
+            "openai": {
+                "api_key": "",
+                "api_url": "https://api.openai.com/v1"
             }
         }
     
@@ -160,6 +164,34 @@ class ConfigManager:
     def organization_domain(self) -> str:
         """获取组织域名，优先使用环境变量"""
         return os.getenv("VC_BUDDY_DOMAIN") or self.get("app.organization_domain", "vcbuddy.local")
+    
+    @property
+    def openai_api_key(self) -> str:
+        """获取OpenAI API Key，优先使用配置文件，其次使用环境变量"""
+        config_key = self.get("openai.api_key", "")
+        if config_key:
+            return config_key
+        return os.getenv("OPENAI_API_KEY", "")
+    
+    @property
+    def openai_api_url(self) -> str:
+        """获取OpenAI API URL，优先使用配置文件，其次使用环境变量"""
+        config_url = self.get("openai.api_url", "")
+        if config_url:
+            return config_url
+        return os.getenv("OPENAI_API_URL", "https://api.openai.com/v1")
+    
+    def set_openai_api_key(self, api_key: str):
+        """设置OpenAI API Key到配置文件"""
+        self.set("openai.api_key", api_key)
+    
+    def set_openai_api_url(self, api_url: str):
+        """设置OpenAI API URL到配置文件"""
+        self.set("openai.api_url", api_url)
+    
+    def has_openai_api_key(self) -> bool:
+        """检查是否有可用的OpenAI API Key"""
+        return bool(self.openai_api_key)
 
 # 全局配置实例
 config_manager = ConfigManager()

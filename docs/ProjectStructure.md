@@ -5,7 +5,7 @@ VC-Buddy-MCP/
 │   ├── core/                       # 核心模块
 │   │   ├── ai_provider.py         # AI 提供商抽象层
 │   │   ├── prompt_manager.py      # Prompt 流管理
-│   │   └── config.py              # 配置管理
+│   │   └── config.py              # 配置管理 ⭐ 已扩展OpenAI API Key和API URL支持
 │   ├── server/                     # MCP 服务器
 │   │   └── main.py                # FastMCP 服务器实现
 │   ├── client/                     # MCP 客户端
@@ -22,12 +22,13 @@ VC-Buddy-MCP/
 │   │   │   └── qmldir             # QML 模块配置 ⭐ 已更新
 │   │   ├── config.py              # 配置管理
 │   │   ├── todo_parser.py         # TODO 解析器 ⭐ 已完善
-│   │   └── voice_recorder.py      # 语音录制模块 ⭐ 新增
+│   │   └── voice_recorder.py      # 语音录制模块 ⭐ 新增，支持配置管理器和自定义API URL
 │   └── tests/                      # 测试文件
 │       ├── test_basic.py          # 基础测试
 │       └── test_todo_parser.py    # TODO 解析器单元测试 ⭐ 新增
 ├── tools/                          # 工具目录 ⭐ 新增
-│   ├── voice_recorder_test.py     # 语音录制器测试工具 ⭐ 新增
+│   ├── voice_recorder_test.py     # 语音录制器测试工具 ⭐ 已更新，集成配置管理
+│   ├── settings_dialog.py         # 设置对话框 ⭐ 新增，支持API Key和API URL配置
 │   └── README_VOICE_RECORDER.md   # 语音录制器使用说明 ⭐ 新增
 ├── docs/                           # 文档目录
 │   ├── ProjectStructure.md        # 项目结构文档

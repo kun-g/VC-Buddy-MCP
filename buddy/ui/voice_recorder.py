@@ -8,6 +8,17 @@ import openai
 from PySide6.QtCore import QObject, Signal, QThread
 from PySide6.QtWidgets import QPushButton, QMessageBox
 
+# 处理相对导入问题
+try:
+    from .config import ConfigManager
+except ImportError:
+    # 如果作为脚本直接运行或被其他模块导入时的备选方案
+    import sys
+    from pathlib import Path
+    current_dir = Path(__file__).parent
+    sys.path.insert(0, str(current_dir))
+    from config import ConfigManager
+
 
 class VoiceRecorder(QObject):
     """语音录制器"""
@@ -19,8 +30,9 @@ class VoiceRecorder(QObject):
     error_occurred = Signal(str)  # 错误信息
     audio_saved = Signal(str)  # 音频文件保存完成，传递文件路径
     
-    def __init__(self):
+    def __init__(self, config_manager: Optional[ConfigManager] = None):
         super().__init__()
+        self.config_manager = config_manager or ConfigManager()
         self.is_recording = False
         self.audio_data = []
         self.stream = None
@@ -39,11 +51,45 @@ class VoiceRecorder(QObject):
     
     def _init_openai_client(self):
         """初始化 OpenAI 客户端"""
-        api_key = os.getenv('OPENAI_API_KEY')
+        api_key = self.config_manager.openai_api_key
+        api_url = self.config_manager.openai_api_url
+        
         if api_key:
-            self.openai_client = openai.OpenAI(api_key=api_key)
+            try:
+                # 验证URL格式
+                if not api_url.startswith(('http://', 'https://')):
+                    print(f"Warning: Invalid API URL format: {api_url}")
+                    api_url = "https://api.openai.com/v1"
+                
+                # 如果使用默认URL，直接创建客户端；如果是自定义URL，需要设置base_url
+                if api_url == "https://api.openai.com/v1":
+                    self.openai_client = openai.OpenAI(api_key=api_key)
+                else:
+                    # 确保URL格式正确
+                    if not api_url.endswith('/v1'):
+                        if not api_url.endswith('/'):
+                            api_url += '/v1'
+                        else:
+                            api_url += 'v1'
+                    self.openai_client = openai.OpenAI(api_key=api_key, base_url=api_url)
+                
+                print(f"OpenAI client initialized with URL: {api_url}")
+            except Exception as e:
+                print(f"Warning: Failed to initialize OpenAI client: {e}")
+                self.openai_client = None
         else:
-            print("Warning: OPENAI_API_KEY not found in environment variables")
+            print("Warning: OpenAI API Key not found in config or environment variables")
+    
+    def update_api_config(self, api_key: str, api_url: str = None):
+        """更新API配置并重新初始化客户端"""
+        self.config_manager.set_openai_api_key(api_key)
+        if api_url:
+            self.config_manager.set_openai_api_url(api_url)
+        self._init_openai_client()
+    
+    def update_api_key(self, api_key: str):
+        """更新API Key并重新初始化客户端（保持向后兼容）"""
+        self.update_api_config(api_key)
     
     def start_recording(self):
         """开始录音"""
@@ -209,13 +255,13 @@ class VoiceRecorder(QObject):
 class VoiceButton(QPushButton):
     """语音录制按钮"""
     
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, config_manager: Optional[ConfigManager] = None):
         super().__init__("🎤", parent)
         self.setToolTip("点击开始录音，再次点击停止录音")
         self.setFixedSize(40, 40)
         
         # 创建录音器
-        self.recorder = VoiceRecorder()
+        self.recorder = VoiceRecorder(config_manager)
         
         # 连接信号
         self.recorder.recording_started.connect(self._on_recording_started)
