@@ -71,6 +71,80 @@ class AnalyticsManager:
                 'platform_summary': platform.platform(),  # 综合平台信息
             }
             
+            # 收集语言和地区信息
+            try:
+                import locale
+                
+                # 获取系统默认语言环境
+                default_locale = locale.getdefaultlocale()
+                if default_locale[0]:
+                    info['system_language'] = default_locale[0]
+                    # 解析语言代码 (例如: 'zh_CN' -> 语言='zh', 国家='CN')
+                    if '_' in default_locale[0]:
+                        lang_parts = default_locale[0].split('_')
+                        info['language_code'] = lang_parts[0]  # zh, en, ja, etc.
+                        info['country_code'] = lang_parts[1]   # CN, US, JP, etc.
+                    else:
+                        info['language_code'] = default_locale[0]
+                        info['country_code'] = 'unknown'
+                else:
+                    info['system_language'] = 'unknown'
+                    info['language_code'] = 'unknown'
+                    info['country_code'] = 'unknown'
+                
+                # 获取系统编码
+                if default_locale[1]:
+                    info['system_encoding'] = default_locale[1]
+                else:
+                    info['system_encoding'] = 'unknown'
+                
+                # 获取当前语言环境设置
+                try:
+                    current_locale = locale.getlocale()
+                    if current_locale[0]:
+                        info['current_locale'] = current_locale[0]
+                    else:
+                        info['current_locale'] = 'C'  # 默认C locale
+                except Exception:
+                    info['current_locale'] = 'unknown'
+                
+                # 尝试获取更详细的地区信息（仅在特定平台）
+                if info['os_name'] == 'Darwin':  # macOS
+                    try:
+                        import subprocess
+                        # 获取macOS的地区设置
+                        result = subprocess.run(['defaults', 'read', '-g', 'AppleLocale'], 
+                                              capture_output=True, text=True, timeout=2)
+                        if result.returncode == 0:
+                            info['macos_locale'] = result.stdout.strip()
+                    except Exception:
+                        pass
+                        
+                elif info['os_name'] == 'Windows':  # Windows
+                    try:
+                        import subprocess
+                        # 获取Windows的地区设置
+                        result = subprocess.run(['powershell', '-Command', 
+                                               'Get-Culture | Select-Object Name'], 
+                                              capture_output=True, text=True, timeout=2)
+                        if result.returncode == 0:
+                            lines = result.stdout.strip().split('\n')
+                            if len(lines) > 2:  # 跳过标题行
+                                info['windows_culture'] = lines[2].strip()
+                    except Exception:
+                        pass
+                
+            except Exception as e:
+                # 如果语言检测失败，设置默认值
+                logging.warning(f"Failed to detect language/locale: {e}")
+                info.update({
+                    'system_language': 'unknown',
+                    'language_code': 'unknown', 
+                    'country_code': 'unknown',
+                    'system_encoding': 'unknown',
+                    'current_locale': 'unknown'
+                })
+            
             # 针对不同操作系统添加特定信息
             if info['os_name'] == 'Darwin':  # macOS
                 try:
@@ -133,7 +207,12 @@ class AnalyticsManager:
                 'platform_summary': 'unknown',
                 'os_friendly_name': 'unknown',
                 'is_apple_silicon': False,
-                'processor_type': 'unknown'
+                'processor_type': 'unknown',
+                'system_language': 'unknown',
+                'language_code': 'unknown',
+                'country_code': 'unknown',
+                'system_encoding': 'unknown',
+                'current_locale': 'unknown'
             }
     
     def _get_or_create_device_id(self) -> str:
@@ -223,6 +302,12 @@ class AnalyticsManager:
                     'platform_friendly_name': self.platform_info['os_friendly_name'],
                     'platform_processor_type': self.platform_info['processor_type'],
                     'platform_is_apple_silicon': self.platform_info['is_apple_silicon'],
+                    # 添加语言和地区信息
+                    'platform_language_code': self.platform_info['language_code'],
+                    'platform_country_code': self.platform_info['country_code'],
+                    'platform_system_language': self.platform_info['system_language'],
+                    'platform_system_encoding': self.platform_info['system_encoding'],
+                    'platform_current_locale': self.platform_info['current_locale'],
                 })
                 
                 event = BaseEvent(
