@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QMessageBox
 )
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QTextCursor
 
 # 添加项目根目录到 Python 路径
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -426,7 +426,7 @@ class UnifiedVoiceTestWindow(QMainWindow):
         
         # 滚动到末尾
         cursor = self.streaming_realtime_text.textCursor()
-        cursor.movePosition(cursor.End)
+        cursor.movePosition(QTextCursor.MoveOperation.End)
         self.streaming_realtime_text.setTextCursor(cursor)
     
     def on_streaming_final_ready(self, transcription: str):
