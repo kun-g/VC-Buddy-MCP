@@ -15,7 +15,6 @@ try:
     from .style_manager import StyleManager, load_default_styles
     from .voice_recorder import VoiceRecorder
     from .streaming_voice_recorder import StreamingVoiceRecorder
-    from .voice_settings_dialog import VoiceSettingsDialog
     from ..core.analytics import get_analytics_manager, track_app_opened, track_button_clicked, track_todo_action, track_voice_action
 except ImportError:
     # 如果作为脚本直接运行，需要添加路径
@@ -26,7 +25,6 @@ except ImportError:
     from ui.style_manager import StyleManager, load_default_styles
     from ui.voice_recorder import VoiceRecorder
     from ui.streaming_voice_recorder import StreamingVoiceRecorder
-    from ui.voice_settings_dialog import VoiceSettingsDialog
     from core.analytics import get_analytics_manager, track_app_opened, track_button_clicked, track_todo_action, track_voice_action
 
 
@@ -80,6 +78,30 @@ class TodoListModel(QAbstractListModel):
         return None
 
 
+class ConfigManagerProxy(QObject):
+    """ConfigManager的QML代理类"""
+    
+    def __init__(self, config_manager, parent=None):
+        super().__init__(parent)
+        self._config_manager = config_manager
+    
+    @Slot(str, result='QVariant')
+    @Slot(str, 'QVariant', result='QVariant')
+    def get(self, key_path, default=None):
+        """获取配置值"""
+        return self._config_manager.get(key_path, default)
+    
+    @Slot(str, 'QVariant')
+    def set(self, key_path, value):
+        """设置配置值"""
+        self._config_manager.set(key_path, value)
+    
+    @Slot()
+    def save_config(self):
+        """保存配置"""
+        self._config_manager.save_config()
+
+
 class AnswerBoxBackend(QObject):
     """QML后端逻辑类"""
     
@@ -91,8 +113,10 @@ class AnswerBoxBackend(QObject):
     voiceTranscriptionReady = Signal(str, arguments=['transcription'])
     voiceTranscriptionChunkReady = Signal(str, arguments=['chunk'])
     voiceRecordingStateChanged = Signal(bool, arguments=['isRecording'])
+    voiceTranscriptionStateChanged = Signal(bool, arguments=['isTranscribing'])  # 新增：转写状态信号
     voiceErrorOccurred = Signal(str, arguments=['errorMessage'])
     voiceCommandDetected = Signal(str, str, arguments=['commandType', 'text'])
+    voiceSettingsRequested = Signal('QVariant', arguments=['configManager'])  # 修复：使用QVariant而不是var
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -100,6 +124,7 @@ class AnswerBoxBackend(QObject):
         # 首先初始化默认值
         self._summary_text = "等待数据输入..."
         self._project_directory = None
+        self._is_transcribing = False  # 新增：转写状态标志
         
         # 尝试读取输入数据（非阻塞）
         data = None
@@ -157,11 +182,20 @@ class AnswerBoxBackend(QObject):
         self._selected_todo_detail = "选择一个任务查看详情"
         self._selected_todo_title = None
         
-        # 初始化流式录音器（传入配置管理器）
-        self._streaming_voice_recorder = StreamingVoiceRecorder(config_manager=self._config_mgr)
+        # 初始化传统录音器作为主要录音器
+        self._voice_recorder = VoiceRecorder(config_manager=self._config_mgr)
         self._is_recording = False
         
-        # 连接流式录音器信号
+        # 连接传统录音器信号
+        self._voice_recorder.recording_started.connect(self._on_recording_started)
+        self._voice_recorder.recording_stopped.connect(self._on_recording_stopped)
+        self._voice_recorder.transcription_ready.connect(self._on_transcription_ready)
+        self._voice_recorder.error_occurred.connect(self._on_voice_error)
+        
+        # 保留流式录音器用于高级功能（如需要时）
+        self._streaming_voice_recorder = StreamingVoiceRecorder(config_manager=self._config_mgr)
+        
+        # 连接流式录音器信号（保留以支持语音设置功能）
         self._streaming_voice_recorder.recording_started.connect(self._on_streaming_recording_started)
         self._streaming_voice_recorder.recording_stopped.connect(self._on_streaming_recording_stopped)
         self._streaming_voice_recorder.transcription_chunk_ready.connect(self._on_transcription_chunk_ready)
@@ -169,9 +203,6 @@ class AnswerBoxBackend(QObject):
         self._streaming_voice_recorder.error_occurred.connect(self._on_streaming_voice_error)
         self._streaming_voice_recorder.stop_command_detected.connect(self._on_stop_command_detected)
         self._streaming_voice_recorder.send_command_detected.connect(self._on_send_command_detected)
-        
-        # 保留原有的录音器用于向后兼容
-        self._voice_recorder = VoiceRecorder(config_manager=self._config_mgr)
         
         # 初始化统计管理器
         self._analytics = get_analytics_manager()
@@ -257,19 +288,33 @@ class AnswerBoxBackend(QObject):
         """录音状态属性"""
         return self._is_recording
     
+    @Property(bool, notify=voiceTranscriptionStateChanged)
+    def isTranscribing(self):
+        """转写状态属性"""
+        return self._is_transcribing
+    
     # 录音相关的槽函数
     @Slot()
     def toggleRecording(self):
-        """切换录音状态（使用流式录音器）"""
+        """切换录音状态（使用传统录音器）"""
         try:
             if self._is_recording:
-                self._streaming_voice_recorder.stop_recording()
-                track_button_clicked("voice_stop_streaming")
+                self._voice_recorder.stop_recording()
+                track_button_clicked("voice_stop_traditional")
             else:
-                self._streaming_voice_recorder.start_recording()
-                track_button_clicked("voice_start_streaming")
+                self._voice_recorder.start_recording()
+                track_button_clicked("voice_start_traditional")
         except Exception as e:
             self.voiceErrorOccurred.emit(f"录音操作失败: {str(e)}")
+    
+    @Slot()
+    def toggleRecordingShortcut(self):
+        """通过快捷键切换录音状态"""
+        # 不能在转写过程中切换录音状态
+        if self._is_transcribing:
+            return
+        self.toggleRecording()
+        track_button_clicked("voice_toggle_shortcut")
     
     def _on_streaming_recording_started(self):
         """流式录音开始"""
@@ -309,7 +354,6 @@ class AnswerBoxBackend(QObject):
         if current_text.strip():
             self.sendResponse(current_text)
     
-    # 保留原有的录音方法用于向后兼容
     def _on_recording_started(self):
         """录音开始（原版本）"""
         self._is_recording = True
@@ -319,9 +363,16 @@ class AnswerBoxBackend(QObject):
         """录音停止（原版本）"""
         self._is_recording = False
         self.voiceRecordingStateChanged.emit(False)
+        # 录音停止后开始转写
+        self._is_transcribing = True
+        self.voiceTranscriptionStateChanged.emit(True)
     
     def _on_transcription_ready(self, transcription: str):
         """转写结果准备就绪（原版本）"""
+        # 转写完成，更新状态
+        self._is_transcribing = False
+        self.voiceTranscriptionStateChanged.emit(False)
+        
         if transcription.strip():
             self.voiceTranscriptionReady.emit(transcription)
     
@@ -329,17 +380,20 @@ class AnswerBoxBackend(QObject):
         """录音错误（原版本）"""
         self._is_recording = False
         self.voiceRecordingStateChanged.emit(False)
+        # 错误时也要重置转写状态
+        self._is_transcribing = False
+        self.voiceTranscriptionStateChanged.emit(False)
         self.voiceErrorOccurred.emit(error_message)
     
     @Slot(result=str)
     def getCurrentTranscription(self):
-        """获取当前流式转写结果"""
-        return self._streaming_voice_recorder.get_current_transcription()
+        """获取当前转写结果（传统录音器不支持实时转写）"""
+        return ""
     
     @Slot()
     def clearTranscriptionBuffer(self):
-        """清空转写缓冲区"""
-        self._streaming_voice_recorder.clear_transcription_buffer()
+        """清空转写缓冲区（传统录音器不需要）"""
+        pass
     
     @Slot(str)
     def updateStopCommands(self, commands_json: str):
@@ -518,22 +572,27 @@ class AnswerBoxBackend(QObject):
 
     @Slot()
     def openVoiceSettings(self):
-        """打开语音设置对话框"""
+        """打开语音设置对话框 - QML版本"""
         try:
-            dialog = VoiceSettingsDialog(self._config_mgr)
-            if dialog.exec() == VoiceSettingsDialog.Accepted:
-                # 更新流式录音器的命令设置
-                stop_commands = dialog.get_stop_commands()
-                send_commands = dialog.get_send_commands()
-                
-                if stop_commands:
-                    self._streaming_voice_recorder.update_stop_commands(stop_commands)
-                if send_commands:
-                    self._streaming_voice_recorder.update_send_commands(send_commands)
-                    
-                track_button_clicked("voice_settings_saved")
+            config_proxy = ConfigManagerProxy(self._config_mgr, self)
+            self.voiceSettingsRequested.emit(config_proxy)
+            track_button_clicked("voice_settings_opened")
         except Exception as e:
             self.voiceErrorOccurred.emit(f"打开语音设置失败: {str(e)}")
+    
+    @Slot('QVariant', 'QVariant')
+    def onVoiceSettingsSaved(self, stopCommands, sendCommands):
+        """处理语音设置保存事件"""
+        try:
+            # 更新流式录音器的命令设置
+            if stopCommands and len(stopCommands) > 0:
+                self._streaming_voice_recorder.update_stop_commands(stopCommands)
+            if sendCommands and len(sendCommands) > 0:
+                self._streaming_voice_recorder.update_send_commands(sendCommands)
+                
+            track_button_clicked("voice_settings_saved")
+        except Exception as e:
+            self.voiceErrorOccurred.emit(f"保存语音设置失败: {str(e)}")
 
 class AnswerBoxQML:
     """QML版本的AnswerBox应用"""
@@ -556,6 +615,7 @@ class AnswerBoxQML:
         # 注册自定义类型
         qmlRegisterType(AnswerBoxBackend, "AnswerBoxBackend", 1, 0, "AnswerBoxBackend")
         qmlRegisterType(StyleManager, "StyleManager", 1, 0, "StyleManager")
+        qmlRegisterType(ConfigManagerProxy, "ConfigManagerProxy", 1, 0, "ConfigManagerProxy")
         
         # 创建后端对象
         self.backend = AnswerBoxBackend()
