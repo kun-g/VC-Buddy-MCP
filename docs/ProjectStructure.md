@@ -8,9 +8,10 @@ VC-Buddy-MCP/
 │   │   ├── analytics.py           # 数据统计模块 ⭐ 新增，支持Amplitude集成，增强平台统计功能
 │   │   └── config.py              # 配置管理 ⭐ 已扩展OpenAI API Key和API URL支持
 │   ├── server/                     # MCP 服务器
-│   │   └── main.py                # FastMCP 服务器实现
+│   │   └── main.py                # FastMCP 服务器实现 ⭐ 已增强参数验证和错误处理
 │   ├── client/                     # MCP 客户端
 │   │   └── test.py                # 客户端测试脚本
+│   ├── cli.py                      # CLI 命令行工具 ⭐ 新增，支持项目环境设置和cursor rules配置
 │   ├── ui/                         # PySide6 GUI
 │   │   ├── answer_box.py          # Answer Box 传统界面 ⭐ 已优化，集成数据统计
 │   │   ├── answer_box_qml.py      # Answer Box QML版本 ⭐ 已升级，支持流式语音输入和QML语音设置，新增Ctrl+,快捷键设置功能，增强埋点统计
@@ -42,6 +43,7 @@ VC-Buddy-MCP/
 ├── docs/                           # 文档目录
 │   ├── ProjectStructure.md        # 项目结构文档
 │   ├── README_CONFIG.md           # 配置管理文档
+│   ├── CLI_GUIDE.md               # CLI 使用指南 ⭐ 新增，详细说明 vcbuddy 命令行工具使用方法
 │   ├── STREAMING_VOICE_INPUT.md   # 流式语音输入功能指南 ⭐ 新增
 │   ├── VOICE_FIXES.md             # 语音功能修复说明 ⭐ 新增，修复崩溃问题
 │   └── prd.md                     # 产品需求文档 ⭐ 新增

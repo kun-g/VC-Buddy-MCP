@@ -1,6 +1,6 @@
 [project]
 name = "vibe-coding-buddy"
-version = "0.1.0"
+version = "0.2.0"
 description = "A Desktop Coding Assistant with MCP Support"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -26,6 +26,9 @@ dependencies = [
     "requests>=2.31.0",
     "amplitude-analytics>=1.1.0",
 ]
+
+[project.scripts]
+vcbuddy = "buddy.cli:main"
 
 [project.optional-dependencies]
 dev = [

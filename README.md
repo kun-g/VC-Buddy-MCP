@@ -47,11 +47,24 @@ make mcp-cursor
 - [MCP 服务器配置指南](https://docs.cursor.com/guides/advanced/working-with-documentation)
 
 ### 4. 设置 Cursor Rule
+
+**🎯 自动设置（推荐）**
+```bash
+# 使用 CLI 工具一键设置项目环境
+uvx --from vibe-coding-buddy vcbuddy setup .
+
+# 或者从源码运行
+uv run --module buddy.cli setup .
+```
+
+**📝 手动设置**
 将以下内容放到 User Rules 里
 ```
 Whenever you want to ask a question, always call the MCP `vc-buddy`.
 Whenever you're about to complete a user request, call the MCP `vc-buddy` instead of simply ending the process. Keep calling MCP until the user's feedback is empty, then end the request.
 ```
+
+> 💡 **提示**: 使用 CLI 工具可以自动配置完整的开发规范，包括项目结构管理和单元测试规范。详见 [CLI 使用指南](docs/CLI_GUIDE.md)。
 
 ### 5. 基本使用
 
