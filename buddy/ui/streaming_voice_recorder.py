@@ -55,64 +55,60 @@ class StreamingVoiceRecorder(QObject):
         self.chunk_size = 1024
         self.format = pyaudio.paInt16
         
-        # 流式处理参数
-        self.chunk_duration = 2.0  # 每个音频块的时长（秒）
-        self.chunk_frames = int(self.sample_rate * self.chunk_duration)
+        # 流式录音参数
+        self.chunk_duration = 3.0  # 每3秒处理一次音频块
+        self.silence_threshold = 0.01  # 静音阈值
         
         # 录音状态
         self.is_recording = False
         self.audio_data = []
+        self.current_chunk_data = []
         self.audio_stream = None
         self.pyaudio_instance = None
         
-        # 流式转写相关
-        self.current_chunk_data = []
+        # 转写状态
         self.transcription_buffer = ""
-        self.processing_thread = None
         
-        # 自定义命令配置
-        self.stop_commands = self._load_stop_commands()
-        self.send_commands = self._load_send_commands()
-        
-        # 初始化OpenAI客户端
+        # 延迟初始化OpenAI客户端
         self.openai_client = None
-        self._init_openai_client()
+        self._openai_initialized = False
         
-        # 创建处理定时器
+        # 初始化定时器
         self.process_timer = QTimer()
+        self.process_timer.setSingleShot(False)
         self.process_timer.timeout.connect(self._process_audio_chunk)
         
+        # 加载自定义命令
+        self._stop_commands = self._load_stop_commands()
+        self._send_commands = self._load_send_commands()
+    
     def _load_stop_commands(self) -> Set[str]:
-        """加载停止录音的命令"""
-        default_commands = {
-            "我说完了", "说完了", "结束", "停止录音", "停止", 
-            "finish", "done", "stop", "end"
-        }
-        
+        """从配置加载停止命令"""
         if self.config_manager:
             custom_commands = self.config_manager.get("voice.stop_commands", [])
-            if custom_commands:
-                default_commands.update(custom_commands)
+            if custom_commands and isinstance(custom_commands, list):
+                return set(cmd.strip().lower() for cmd in custom_commands if cmd.strip())
+        
+        # 默认停止命令
+        default_commands = {"我说完了", "说完了", "结束", "停止录音", "停止", "finish", "done", "stop", "end"}
         
         return default_commands
     
     def _load_send_commands(self) -> Set[str]:
-        """加载直接发送的命令"""
-        default_commands = {
-            "开工吧", "发送", "提交", "执行", "开始干活", "开始工作",
-            "send", "submit", "go", "execute", "let's go"
-        }
-        
+        """从配置加载发送命令"""
         if self.config_manager:
             custom_commands = self.config_manager.get("voice.send_commands", [])
-            if custom_commands:
-                default_commands.update(custom_commands)
+            if custom_commands and isinstance(custom_commands, list):
+                return set(cmd.strip().lower() for cmd in custom_commands if cmd.strip())
+        
+        # 默认发送命令
+        default_commands = {"开工吧", "发送", "提交", "执行", "go", "send", "submit", "execute"}
         
         return default_commands
     
     def _init_openai_client(self):
-        """初始化OpenAI客户端"""
-        if not OPENAI_AVAILABLE:
+        """延迟初始化OpenAI客户端"""
+        if self._openai_initialized or not OPENAI_AVAILABLE:
             return
         
         try:
@@ -143,6 +139,21 @@ class StreamingVoiceRecorder(QObject):
         except Exception as e:
             print(f"Error initializing OpenAI client for streaming: {e}")
             self.openai_client = None
+        finally:
+            self._openai_initialized = True
+    
+    def update_api_config(self, api_key: str, api_url: str = None):
+        """更新API配置"""
+        try:
+            # 重置初始化标志，下次转写时重新初始化
+            self._openai_initialized = False
+            self.openai_client = None
+            
+            # 如果立即需要初始化，可以调用初始化方法
+            if api_key:  # 只有在提供了API key时才初始化
+                self._init_openai_client()
+        except Exception as e:
+            self.error_occurred.emit(f"更新API配置失败: {str(e)}")
     
     def start_recording(self):
         """开始流式录音"""
@@ -333,6 +344,10 @@ class StreamingVoiceRecorder(QObject):
     
     def _transcribe_chunk(self, chunk_data: List[bytes], is_final: bool = False):
         """转写音频块"""
+        # 延迟初始化OpenAI客户端
+        if not self._openai_initialized:
+            self._init_openai_client()
+        
         if not self.openai_client or not chunk_data:
             print("DEBUG: 转写跳过 - 没有OpenAI客户端或音频数据")
             return
@@ -463,8 +478,8 @@ class StreamingVoiceRecorder(QObject):
         print(f"DEBUG: 检查命令，文本: '{text_lower}'")
         
         # 检查停止命令
-        for cmd in self.stop_commands:
-            if cmd.lower() in text_lower:
+        for cmd in self._stop_commands:
+            if cmd in text_lower:
                 print(f"DEBUG: 检测到停止命令: '{cmd}'")
                 self.stop_command_detected.emit(cmd)
                 # 自动停止录音
@@ -473,8 +488,8 @@ class StreamingVoiceRecorder(QObject):
                 return
         
         # 检查发送命令
-        for cmd in self.send_commands:
-            if cmd.lower() in text_lower:
+        for cmd in self._send_commands:
+            if cmd in text_lower:
                 print(f"DEBUG: 检测到发送命令: '{cmd}'")
                 self.send_command_detected.emit(cmd)
                 # 自动停止录音并发送
@@ -486,13 +501,13 @@ class StreamingVoiceRecorder(QObject):
     
     def update_stop_commands(self, commands: List[str]):
         """更新停止命令列表"""
-        self.stop_commands = set(commands)
+        self._stop_commands = set(commands)
         if self.config_manager:
             self.config_manager.set("voice.stop_commands", commands)
     
     def update_send_commands(self, commands: List[str]):
         """更新发送命令列表"""
-        self.send_commands = set(commands)
+        self._send_commands = set(commands)
         if self.config_manager:
             self.config_manager.set("voice.send_commands", commands)
     

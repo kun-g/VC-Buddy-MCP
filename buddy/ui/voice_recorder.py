@@ -62,13 +62,13 @@ class VoiceRecorder(QObject):
         # 最后录制的音频文件路径
         self.last_audio_file = None
         
-        # 初始化OpenAI客户端
+        # 延迟初始化OpenAI客户端
         self.openai_client = None
-        self._init_openai_client()
+        self._openai_initialized = False
     
     def _init_openai_client(self):
-        """初始化OpenAI客户端"""
-        if not OPENAI_AVAILABLE:
+        """延迟初始化OpenAI客户端"""
+        if self._openai_initialized or not OPENAI_AVAILABLE:
             return
         
         try:
@@ -99,14 +99,19 @@ class VoiceRecorder(QObject):
         except Exception as e:
             print(f"Error initializing OpenAI client: {e}")
             self.openai_client = None
+        finally:
+            self._openai_initialized = True
     
     def update_api_config(self, api_key: str, api_url: str = None):
         """更新API配置"""
         try:
-            self.openai_client = OpenAI(
-                api_key=api_key,
-                base_url=api_url or "https://api.openai.com/v1"
-            )
+            # 重置初始化标志，下次转写时重新初始化
+            self._openai_initialized = False
+            self.openai_client = None
+            
+            # 如果立即需要初始化，可以调用初始化方法
+            if api_key:  # 只有在提供了API key时才初始化
+                self._init_openai_client()
         except Exception as e:
             self.error_occurred.emit(f"更新API配置失败: {str(e)}")
     
@@ -352,6 +357,10 @@ class VoiceRecorder(QObject):
     
     def _start_transcription(self):
         """开始转写音频"""
+        # 延迟初始化OpenAI客户端
+        if not self._openai_initialized:
+            self._init_openai_client()
+        
         if not self.openai_client:
             self.error_occurred.emit("OpenAI API 未配置，无法进行语音转写")
             return
