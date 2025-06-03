@@ -1,4 +1,4 @@
-.PHONY: help install install-system-deps dev show-ui show-ui-qml test-voice
+.PHONY: help install install-system-deps dev show-ui show-ui-qml test-voice mcp-claude mcp-cursor
 
 help:
 	@echo "Available commands:"
@@ -7,6 +7,8 @@ help:
 	@echo "  make dev                - Start development GUI"
 	@echo "  make show-ui            - Show UI (QtWidgets version)"
 	@echo "  make test-voice         - Launch voice recorder test tool"
+	@echo "  make mcp-claude         - Output MCP configuration for Claude Desktop"
+	@echo "  make mcp-cursor         - Output MCP configuration for Cursor"
 
 install-system-deps:
 	@echo "🔧 检测操作系统并安装系统依赖..."
@@ -61,5 +63,11 @@ dev:
 show-ui:
 	@echo '{"summary": "我已经完成了 TODO 列表的解析功能，需求你确认验收一下", "project_directory": "'$(PWD)'"}' | uv run buddy/ui/answer_box_qml.py
 
-test-voice:
+test-voice: install
 	uv run tools/voice_test_unified.py
+
+mcp-claude:
+	uv run python tools/mcp_config_generator.py --client claude
+
+mcp-cursor:
+	uv run python tools/mcp_config_generator.py --client cursor

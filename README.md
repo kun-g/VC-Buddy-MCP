@@ -34,94 +34,126 @@ cd VC-Buddy-MCP
 make install
 ```
 
-**智能依赖安装说明：**
-- **macOS**: 自动使用 Homebrew 安装 `portaudio`
-- **Ubuntu/Debian**: 自动安装 `portaudio19-dev python3-dev`
-- **CentOS/RHEL**: 自动安装 `portaudio-devel python3-devel`  
-- **Fedora**: 自动安装 `portaudio-devel python3-devel`
-- **Arch Linux**: 自动安装 `portaudio`
-
-如果只想安装系统依赖：
-```bash
-make install-system-deps
-```
-
 ### 3. 配置 MCP 服务器
 
-本项目提供了基于 **FastMCP** 的服务器实现，支持交互式反馈功能。
+```bash
+make mcp-config
+```
+按照提示，复制配置到对应的配置文件里。
 
-#### 3.1 启动 MCP 服务器
+以下是主流 AI 编程软件的 MCP 配置文档链接：
 
-**开发模式（推荐）**
+**🔧 Cursor IDE**
+- [官方 MCP 配置文档](https://docs.cursor.com/context/model-context-protocol)
+- [MCP 服务器配置指南](https://docs.cursor.com/guides/advanced/working-with-documentation)
+
+**🤖 Claude Desktop**
+- [官方 MCP 用户指南](https://modelcontextprotocol.io/quickstart/user)
+- [MCP 服务器安装教程](https://docs.mcp.run/mcp-clients/claude-desktop/)
+
+### 4. 启动应用程序
+
+安装完成后，您可以通过以下方式启动应用：
+
+**方式一：启动 GUI 界面**
+```bash
+# 启动 QML 版本界面（推荐）
+make show-ui
+
+# 或者直接运行
+uv run buddy/ui/answer_box_qml.py
+```
+
+**方式二：启动开发模式**
 ```bash
 # 启动开发模式，包含 MCP Inspector 界面
 make dev
-# 或者
-uv run fastmcp dev buddy/server/main.py
 ```
 
-**标准 stdio 模式**
+**方式三：测试语音功能**
 ```bash
-# 直接运行 MCP 服务器（stdio 传输）
-uv run python buddy/server/main.py
+# 启动语音测试工具
+make test-voice
 ```
 
-#### 3.2 配置客户端连接
+### 5. 基本使用
 
-**方式一：Claude Desktop 配置**
+#### 5.1 GUI 界面使用
 
-在 Claude Desktop 的配置文件中添加：
+1. **文本输入**: 在输入框中输入您的问题或需求
+2. **语音输入**: 点击麦克风按钮开始录音，支持实时转写
+3. **发送消息**: 点击发送按钮或使用快捷键 `Ctrl+Enter`
+4. **查看回复**: AI 回复会显示在下方区域，支持 Markdown 渲染
+5. **TODO 管理**: 自动解析回复中的 TODO 项目，支持标记完成状态
 
+#### 5.2 语音功能设置
+
+1. 点击界面上的"语音设置"按钮
+2. 配置自定义语音命令：
+   - **停止命令**: "我说完了"、"结束"、"stop" 等
+   - **发送命令**: "开工吧"、"发送"、"go" 等
+3. 选择录音模式：
+   - **传统模式**: 录音完成后一次性转写
+   - **流式模式**: 实时转写，边说边显示
+
+#### 5.3 快捷键
+
+- `Ctrl+Enter`: 发送消息
+- `Ctrl+R`: 开始/停止录音
+- `Ctrl+,`: 打开设置
+- `Esc`: 取消当前操作
+
+#### 5.4 配置 API Key
+
+首次使用需要配置 OpenAI API Key：
+
+**方式一：通过环境变量**
+```bash
+# 设置 OpenAI API Key
+export OPENAI_API_KEY="your-api-key-here"
+
+# 可选：设置自定义 API URL（如使用第三方服务）
+export OPENAI_API_URL="https://your-api-server.com/v1"
+```
+
+**方式二：通过设置界面**
+```bash
+# 启动设置对话框
+uv run tools/settings_dialog.py
+```
+
+**方式三：通过配置文件**
+在用户目录下创建 `.vc-buddy-config.json` 文件：
 ```json
 {
-  "mcpServers": {
-    "vibe-coding-buddy": {
-      "command": "uv",
-      "args": ["run", "python", "buddy/server/main.py"],
-      "cwd": "/path/to/VC-Buddy-MCP"
-    }
-  }
+  "openai_api_key": "your-api-key-here",
+  "openai_api_url": "https://api.openai.com/v1"
 }
 ```
 
-**方式二：直接测试**
+#### 5.5 常见使用场景
 
-```bash
-# 测试客户端连接
-uv run python buddy/client/test.py
-```
+**代码助手模式**
+- 输入代码问题，获得详细解答和示例
+- 支持多种编程语言的代码分析和优化建议
+- 自动生成 TODO 列表，帮助规划开发任务
 
-#### 3.3 可用工具
+**项目管理模式**
+- 描述项目需求，获得结构化的开发计划
+- TODO 项目自动解析，支持勾选完成状态
+- 支持项目进度跟踪和任务管理
 
-MCP 服务器提供以下工具：
+**学习助手模式**
+- 提出技术问题，获得深入浅出的解释
+- 支持语音提问，提高学习效率
+- 自动整理学习要点和练习建议
 
-- **ask_for_feedback**: 向用户请求交互式反馈
-  - 参数：`summary` (必需) - 反馈请求描述
-  - 参数：`project_directory` (可选) - 项目目录路径
-  - 返回：用户反馈的 JSON 格式字符串
+**快速原型模式**
+- 描述功能需求，快速生成代码原型
+- 支持多种框架和技术栈
+- 提供完整的实现方案和部署指导
 
-#### 3.4 环境变量配置
-
-```bash
-# 可选：自定义配置文件路径
-export VC_BUDDY_CONFIG="/path/to/your/config.json"
-
-# 可选：自定义组织信息
-export VC_BUDDY_ORG="Your-Organization"
-export VC_BUDDY_APP_NAME="Your-App-Name"
-```
-
-#### 3.5 验证安装
-
-```bash
-# 测试 MCP 服务器和工具
-uv run python buddy/client/test.py
-
-# 检查服务器是否正常启动
-echo '{"method": "tools/list"}' | uv run python buddy/server/main.py
-```
-
-### 4. 调试
+### 6. 调试
 
 ## 🔧 开发工具
 
