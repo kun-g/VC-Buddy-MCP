@@ -32,7 +32,7 @@ except ImportError:
             self.api_key = api_key
         
         def track(self, event: BaseEvent):
-            logging.info(f"Mock analytics: {event.event_type} - {event.event_properties}")
+            logging.debug(f"Mock analytics: {event.event_type} - {event.event_properties}")
 
 
 class AnalyticsManager:
