@@ -24,6 +24,7 @@ dependencies = [
     "pyaudio>=0.2.11",
     "openai>=1.0.0",
     "requests>=2.31.0",
+    "amplitude-analytics>=1.1.0",
 ]
 
 [project.optional-dependencies]
