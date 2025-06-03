@@ -21,4 +21,4 @@ show-ui-qml: install
 	@echo '{"summary": "我已经完成了 TODO 列表的解析功能，需求你确认验收一下", "project_directory": "'$(PWD)'"}' | uv run buddy/ui/answer_box_qml.py
 
 test-voice: install
-	uv run tools/voice_recorder_test.py
+	uv run tools/voice_test_unified.py

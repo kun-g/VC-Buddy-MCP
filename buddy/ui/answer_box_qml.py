@@ -14,6 +14,8 @@ try:
     from .todo_parser import TodoParser, TodoItem
     from .style_manager import StyleManager, load_default_styles
     from .voice_recorder import VoiceRecorder
+    from .streaming_voice_recorder import StreamingVoiceRecorder
+    from .voice_settings_dialog import VoiceSettingsDialog
     from ..core.analytics import get_analytics_manager, track_app_opened, track_button_clicked, track_todo_action, track_voice_action
 except ImportError:
     # 如果作为脚本直接运行，需要添加路径
@@ -23,6 +25,8 @@ except ImportError:
     from ui.todo_parser import TodoParser, TodoItem
     from ui.style_manager import StyleManager, load_default_styles
     from ui.voice_recorder import VoiceRecorder
+    from ui.streaming_voice_recorder import StreamingVoiceRecorder
+    from ui.voice_settings_dialog import VoiceSettingsDialog
     from core.analytics import get_analytics_manager, track_app_opened, track_button_clicked, track_todo_action, track_voice_action
 
 
@@ -85,8 +89,10 @@ class AnswerBoxBackend(QObject):
     selectedTodoDetailChanged = Signal()
     windowGeometryChanged = Signal()
     voiceTranscriptionReady = Signal(str, arguments=['transcription'])
+    voiceTranscriptionChunkReady = Signal(str, arguments=['chunk'])
     voiceRecordingStateChanged = Signal(bool, arguments=['isRecording'])
     voiceErrorOccurred = Signal(str, arguments=['errorMessage'])
+    voiceCommandDetected = Signal(str, str, arguments=['commandType', 'text'])
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -151,15 +157,21 @@ class AnswerBoxBackend(QObject):
         self._selected_todo_detail = "选择一个任务查看详情"
         self._selected_todo_title = None
         
-        # 初始化录音器（传入配置管理器）
-        self._voice_recorder = VoiceRecorder(config_manager=self._config_mgr)
+        # 初始化流式录音器（传入配置管理器）
+        self._streaming_voice_recorder = StreamingVoiceRecorder(config_manager=self._config_mgr)
         self._is_recording = False
         
-        # 连接录音器信号
-        self._voice_recorder.recording_started.connect(self._on_recording_started)
-        self._voice_recorder.recording_stopped.connect(self._on_recording_stopped)
-        self._voice_recorder.transcription_ready.connect(self._on_transcription_ready)
-        self._voice_recorder.error_occurred.connect(self._on_voice_error)
+        # 连接流式录音器信号
+        self._streaming_voice_recorder.recording_started.connect(self._on_streaming_recording_started)
+        self._streaming_voice_recorder.recording_stopped.connect(self._on_streaming_recording_stopped)
+        self._streaming_voice_recorder.transcription_chunk_ready.connect(self._on_transcription_chunk_ready)
+        self._streaming_voice_recorder.final_transcription_ready.connect(self._on_final_transcription_ready)
+        self._streaming_voice_recorder.error_occurred.connect(self._on_streaming_voice_error)
+        self._streaming_voice_recorder.stop_command_detected.connect(self._on_stop_command_detected)
+        self._streaming_voice_recorder.send_command_detected.connect(self._on_send_command_detected)
+        
+        # 保留原有的录音器用于向后兼容
+        self._voice_recorder = VoiceRecorder(config_manager=self._config_mgr)
         
         # 初始化统计管理器
         self._analytics = get_analytics_manager()
@@ -248,36 +260,106 @@ class AnswerBoxBackend(QObject):
     # 录音相关的槽函数
     @Slot()
     def toggleRecording(self):
-        """切换录音状态"""
-        if self._is_recording:
-            self._voice_recorder.stop_recording()
-            track_voice_action("stop_recording")
-            track_button_clicked("stop_recording", "voice_panel")
-        else:
-            self._voice_recorder.start_recording()
-            track_voice_action("start_recording")
-            track_button_clicked("start_recording", "voice_panel")
+        """切换录音状态（使用流式录音器）"""
+        try:
+            if self._is_recording:
+                self._streaming_voice_recorder.stop_recording()
+                track_button_clicked("voice_stop_streaming")
+            else:
+                self._streaming_voice_recorder.start_recording()
+                track_button_clicked("voice_start_streaming")
+        except Exception as e:
+            self.voiceErrorOccurred.emit(f"录音操作失败: {str(e)}")
     
+    def _on_streaming_recording_started(self):
+        """流式录音开始"""
+        self._is_recording = True
+        self.voiceRecordingStateChanged.emit(True)
+    
+    def _on_streaming_recording_stopped(self):
+        """流式录音停止"""
+        self._is_recording = False
+        self.voiceRecordingStateChanged.emit(False)
+    
+    def _on_transcription_chunk_ready(self, chunk: str):
+        """处理实时转写片段"""
+        if chunk.strip():
+            self.voiceTranscriptionChunkReady.emit(chunk)
+    
+    def _on_final_transcription_ready(self, transcription: str):
+        """处理最终转写结果"""
+        if transcription.strip():
+            self.voiceTranscriptionReady.emit(transcription)
+    
+    def _on_streaming_voice_error(self, error_message: str):
+        """处理流式录音错误"""
+        self._is_recording = False
+        self.voiceRecordingStateChanged.emit(False)
+        self.voiceErrorOccurred.emit(error_message)
+    
+    def _on_stop_command_detected(self, command: str):
+        """处理停止命令"""
+        self.voiceCommandDetected.emit("stop", command)
+    
+    def _on_send_command_detected(self, command: str):
+        """处理发送命令"""
+        self.voiceCommandDetected.emit("send", command)
+        # 自动发送当前转写结果
+        current_text = self._streaming_voice_recorder.get_current_transcription()
+        if current_text.strip():
+            self.sendResponse(current_text)
+    
+    # 保留原有的录音方法用于向后兼容
     def _on_recording_started(self):
-        """录音开始时的处理"""
+        """录音开始（原版本）"""
         self._is_recording = True
         self.voiceRecordingStateChanged.emit(True)
     
     def _on_recording_stopped(self):
-        """录音停止时的处理"""
+        """录音停止（原版本）"""
         self._is_recording = False
         self.voiceRecordingStateChanged.emit(False)
     
     def _on_transcription_ready(self, transcription: str):
-        """转写完成时的处理"""
-        track_voice_action("transcription_completed")
-        self.voiceTranscriptionReady.emit(transcription)
+        """转写结果准备就绪（原版本）"""
+        if transcription.strip():
+            self.voiceTranscriptionReady.emit(transcription)
     
     def _on_voice_error(self, error_message: str):
-        """语音错误处理"""
+        """录音错误（原版本）"""
         self._is_recording = False
         self.voiceRecordingStateChanged.emit(False)
         self.voiceErrorOccurred.emit(error_message)
+    
+    @Slot(result=str)
+    def getCurrentTranscription(self):
+        """获取当前流式转写结果"""
+        return self._streaming_voice_recorder.get_current_transcription()
+    
+    @Slot()
+    def clearTranscriptionBuffer(self):
+        """清空转写缓冲区"""
+        self._streaming_voice_recorder.clear_transcription_buffer()
+    
+    @Slot(str)
+    def updateStopCommands(self, commands_json: str):
+        """更新停止命令（JSON格式）"""
+        try:
+            import json
+            commands = json.loads(commands_json)
+            self._streaming_voice_recorder.update_stop_commands(commands)
+        except Exception as e:
+            self.voiceErrorOccurred.emit(f"更新停止命令失败: {str(e)}")
+    
+    @Slot(str) 
+    def updateSendCommands(self, commands_json: str):
+        """更新发送命令（JSON格式）"""
+        try:
+            import json
+            commands = json.loads(commands_json)
+            self._streaming_voice_recorder.update_send_commands(commands)
+        except Exception as e:
+            self.voiceErrorOccurred.emit(f"更新发送命令失败: {str(e)}")
     
     # 槽函数定义
     @Slot(int)
@@ -433,6 +515,25 @@ class AnswerBoxBackend(QObject):
         return (x >= 0 and y >= 0 and 
                 width >= 200 and height >= 150 and
                 width <= 3000 and height <= 2000)
+
+    @Slot()
+    def openVoiceSettings(self):
+        """打开语音设置对话框"""
+        try:
+            dialog = VoiceSettingsDialog(self._config_mgr)
+            if dialog.exec() == VoiceSettingsDialog.Accepted:
+                # 更新流式录音器的命令设置
+                stop_commands = dialog.get_stop_commands()
+                send_commands = dialog.get_send_commands()
+                
+                if stop_commands:
+                    self._streaming_voice_recorder.update_stop_commands(stop_commands)
+                if send_commands:
+                    self._streaming_voice_recorder.update_send_commands(send_commands)
+                    
+                track_button_clicked("voice_settings_saved")
+        except Exception as e:
+            self.voiceErrorOccurred.emit(f"打开语音设置失败: {str(e)}")
 
 class AnswerBoxQML:
     """QML版本的AnswerBox应用"""

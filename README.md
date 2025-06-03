@@ -1,5 +1,3 @@
-# Vibe Coding Buddy - MCP
-
 <h1 align="center">Vibe Coding Buddy <sup>🚀 MCP Edition</sup></h1>
 <p align="center">
   <em>A modern AI-powered coding assistant for your Vibe Coding</em><br>
@@ -8,7 +6,7 @@
   <!-- <a href="#"><img alt="CI" src="https://github.com/kun/vc-buddy/actions/workflows/ci.yml/badge.svg"/></a> -->
 </p>
 
-## ✨ Features
+## ✨ 功能特性
 
 - 🔄 **MCP 协议**：支持 stdio 
 - 🎨 **现代 UI**：PySide6 构建的响应式界面
