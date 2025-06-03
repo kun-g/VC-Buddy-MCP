@@ -50,7 +50,7 @@ make mcp-cursor
 将以下内容放到 User Rules 里
 ```
 Whenever you want to ask a question, always call the MCP `vc-buddy`.
-Whenever you’re about to complete a user request, call the MCP `vc-buddy` instead of simply ending the process. Keep calling MCP until the user’s feedback is empty, then end the request.
+Whenever you're about to complete a user request, call the MCP `vc-buddy` instead of simply ending the process. Keep calling MCP until the user's feedback is empty, then end the request.
 ```
 
 ### 5. 基本使用

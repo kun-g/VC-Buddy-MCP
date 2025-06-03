@@ -16,7 +16,7 @@ import sys
 
 # 尝试导入Amplitude，如果不存在则使用模拟版本
 try:
-    from amplitude import Amplitude, BaseEvent
+    from amplitude import Amplitude, BaseEvent, Identify, EventOptions
     AMPLITUDE_AVAILABLE = True
 except ImportError:
     logging.warning("Amplitude library not available, using mock analytics")
@@ -24,10 +24,24 @@ except ImportError:
     
     # 模拟类定义
     class BaseEvent:
-        def __init__(self, event_type: str, device_id: str = None, event_properties: Dict[str, Any] = None):
+        def __init__(self, event_type: str, device_id: str = None, user_id: str = None, event_properties: Dict[str, Any] = None):
             self.event_type = event_type
             self.device_id = device_id
+            self.user_id = user_id
             self.event_properties = event_properties or {}
+    
+    class Identify:
+        def __init__(self):
+            self.properties = {}
+        
+        def set(self, property: str, value: Any):
+            self.properties[property] = value
+            return self
+    
+    class EventOptions:
+        def __init__(self, device_id: str = None, user_id: str = None):
+            self.device_id = device_id
+            self.user_id = user_id
     
     class Amplitude:
         def __init__(self, api_key: str):
@@ -35,6 +49,9 @@ except ImportError:
         
         def track(self, event: BaseEvent):
             logging.debug(f"Mock analytics: {event.event_type} - {event.event_properties}")
+        
+        def identify(self, identify_obj: Identify, options: EventOptions = None):
+            logging.debug(f"Mock identify: {identify_obj.properties}")
 
 
 class AnalyticsManager:
@@ -49,6 +66,9 @@ class AnalyticsManager:
         # 收集平台信息
         self.platform_info = self._collect_platform_info()
         
+        # 收集IP地址和网络信息
+        self.network_info = self._collect_network_info()
+        
         # 初始化Amplitude
         self.amplitude = Amplitude(api_key) if AMPLITUDE_AVAILABLE else Amplitude(api_key)
         
@@ -58,7 +78,68 @@ class AnalyticsManager:
         # 线程安全锁
         self._lock = threading.Lock()
         
-        logging.info(f"Analytics initialized: enabled={self.enabled}, device_id={self.device_id}, platform={self.platform_info.get('os_name')}")
+        # 用户属性是否已设置标记
+        self._user_properties_set = False
+        
+        logging.info(f"Analytics initialized: enabled={self.enabled}, device_id={self.device_id}, platform={self.platform_info.get('os_name')}, ip={self.network_info.get('public_ip', 'unknown')}")
+    
+    def _collect_network_info(self) -> Dict[str, Any]:
+        """收集网络和IP信息（隐私安全）"""
+        network_info = {}
+        
+        try:
+            # 尝试获取公网IP地址
+            import urllib.request
+            import socket
+            
+            # 方法1: 使用httpbin.org获取公网IP
+            try:
+                with urllib.request.urlopen('https://httpbin.org/ip', timeout=3) as response:
+                    data = json.loads(response.read().decode())
+                    network_info['public_ip'] = data.get('origin', '').split(',')[0].strip()
+            except Exception:
+                # 方法2: 使用ipify.org备选
+                try:
+                    with urllib.request.urlopen('https://api.ipify.org?format=json', timeout=3) as response:
+                        data = json.loads(response.read().decode())
+                        network_info['public_ip'] = data.get('ip', 'unknown')
+                except Exception:
+                    network_info['public_ip'] = 'unknown'
+            
+            # 获取本地网络信息
+            try:
+                hostname = socket.gethostname()
+                network_info['hostname'] = hostname
+                
+                # 获取本地IP地址
+                local_ip = socket.gethostbyname(hostname)
+                network_info['local_ip'] = local_ip
+            except Exception:
+                network_info['hostname'] = 'unknown'
+                network_info['local_ip'] = 'unknown'
+            
+            # 检测网络类型
+            if 'local_ip' in network_info:
+                local_ip = network_info['local_ip']
+                if local_ip.startswith('192.168.') or local_ip.startswith('10.') or local_ip.startswith('172.'):
+                    network_info['network_type'] = 'private'
+                elif local_ip == '127.0.0.1':
+                    network_info['network_type'] = 'localhost'
+                else:
+                    network_info['network_type'] = 'public'
+            else:
+                network_info['network_type'] = 'unknown'
+                
+        except Exception as e:
+            logging.warning(f"Failed to collect network info: {e}")
+            network_info = {
+                'public_ip': 'unknown',
+                'local_ip': 'unknown',
+                'hostname': 'unknown',
+                'network_type': 'unknown'
+            }
+        
+        return network_info
     
     def _collect_platform_info(self) -> Dict[str, Any]:
         """收集平台信息（隐私安全）"""
@@ -203,18 +284,66 @@ class AnalyticsManager:
                 'os_name': 'unknown',
                 'os_version': 'unknown',
                 'architecture': 'unknown',
-                'python_version': f"{sys.version_info.major}.{sys.version_info.minor}",
+                'python_version': 'unknown',
                 'platform_summary': 'unknown',
                 'os_friendly_name': 'unknown',
-                'is_apple_silicon': False,
                 'processor_type': 'unknown',
-                'system_language': 'unknown',
+                'is_apple_silicon': False,
                 'language_code': 'unknown',
                 'country_code': 'unknown',
+                'system_language': 'unknown',
                 'system_encoding': 'unknown',
                 'current_locale': 'unknown'
             }
-    
+
+    def _setup_user_properties(self):
+        """设置用户属性（只调用一次）"""
+        if self._user_properties_set or not self.enabled:
+            return
+        
+        try:
+            with self._lock:
+                if self._user_properties_set:  # 双重检查锁定
+                    return
+                
+                # 创建用户属性标识对象
+                identify_obj = Identify()
+                
+                # 设置平台相关的用户属性
+                identify_obj.set("platform_os", self.platform_info['os_name'])
+                identify_obj.set("platform_os_version", self.platform_info['os_version'])
+                identify_obj.set("platform_architecture", self.platform_info['architecture'])
+                identify_obj.set("platform_python_version", self.platform_info['python_version'])
+                identify_obj.set("platform_friendly_name", self.platform_info['os_friendly_name'])
+                identify_obj.set("platform_processor_type", self.platform_info['processor_type'])
+                identify_obj.set("platform_is_apple_silicon", self.platform_info['is_apple_silicon'])
+                
+                # 语言和地区作为用户属性
+                identify_obj.set("user_language_code", self.platform_info['language_code'])
+                identify_obj.set("user_country_code", self.platform_info['country_code'])
+                identify_obj.set("user_system_language", self.platform_info['system_language'])
+                identify_obj.set("user_system_encoding", self.platform_info['system_encoding'])
+                identify_obj.set("user_current_locale", self.platform_info['current_locale'])
+                
+                # 网络和IP信息作为用户属性
+                identify_obj.set("user_public_ip", self.network_info['public_ip'])
+                identify_obj.set("user_local_ip", self.network_info['local_ip'])
+                identify_obj.set("user_hostname", self.network_info['hostname'])
+                identify_obj.set("user_network_type", self.network_info['network_type'])
+                
+                # 设备标识
+                identify_obj.set("device_id", self.device_id)
+                
+                # 发送用户属性标识
+                event_options = EventOptions(device_id=self.device_id)
+                self.amplitude.identify(identify_obj, event_options)
+                
+                self._user_properties_set = True
+                logging.info(f"User properties set: language={self.platform_info['language_code']}, country={self.platform_info['country_code']}, ip={self.network_info['public_ip']}")
+                
+        except Exception as e:
+            logging.error(f"Failed to setup user properties: {e}")
+
     def _get_or_create_device_id(self) -> str:
         """获取或创建设备ID"""
         try:
@@ -289,25 +418,18 @@ class AnalyticsManager:
             return
         
         try:
+            # 确保用户属性已设置（只在第一次调用时设置）
+            self._setup_user_properties()
+            
             with self._lock:
                 event_properties = properties or {}
                 event_properties['timestamp'] = time.time()
                 
-                # 自动添加平台信息到所有事件
+                # 只添加基本的事件级别信息，不重复用户属性
+                # 用户属性（语言、国家、平台等）已通过identify()设置
                 event_properties.update({
-                    'platform_os': self.platform_info['os_name'],
-                    'platform_os_version': self.platform_info['os_version'],
-                    'platform_architecture': self.platform_info['architecture'],
-                    'platform_python_version': self.platform_info['python_version'],
-                    'platform_friendly_name': self.platform_info['os_friendly_name'],
-                    'platform_processor_type': self.platform_info['processor_type'],
-                    'platform_is_apple_silicon': self.platform_info['is_apple_silicon'],
-                    # 添加语言和地区信息
-                    'platform_language_code': self.platform_info['language_code'],
-                    'platform_country_code': self.platform_info['country_code'],
-                    'platform_system_language': self.platform_info['system_language'],
-                    'platform_system_encoding': self.platform_info['system_encoding'],
-                    'platform_current_locale': self.platform_info['current_locale'],
+                    'session_id': self.device_id,  # 使用设备ID作为会话标识
+                    'app_version': 'vc-buddy-mcp',  # 应用版本
                 })
                 
                 event = BaseEvent(
