@@ -5,10 +5,16 @@ import subprocess
 import json
 import os
 import sys
+from pathlib import Path
+
+# 导入版本获取模块
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from core.version import get_app_version
+
 
 mcp = FastMCP(
     name="Vibe Coding Buddy",
-    version="0.1.0",
+    version=get_app_version(),
     instructions="This is a test server for Vibe Coding Buddy.",
 )
 

@@ -7,7 +7,7 @@ TODO 列表只展示标题就可以，属性和详情不用展示在列表里
 
 # 分析统计功能
 
-## 平台信息收集和分析 
+## 平台信息收集和分析
 state=done
 
 实现了完整的平台信息收集，包括：
@@ -15,33 +15,6 @@ state=done
 - 架构信息（x64/ARM64/Apple Silicon）  
 - Python版本信息
 - 系统语言和地区设置
-
-## 语言和国家统计
-state=done
-
-将语言和国家信息作为用户属性（User Properties）收集：
-- 自动检测系统语言代码（zh/en/ja等）
-- 自动检测国家代码（CN/US/JP等）
-- 支持跨平台locale检测
-- 与设备ID一样作为用户标识信息
-
-## IP地址收集
-state=done
-
-实现了安全的IP地址收集功能：
-- 自动获取公网IP地址（用于地区统计）
-- 收集本地IP和主机名信息
-- 检测网络类型（公网/私网/本地）
-- 所有信息匿名化处理，不关联个人身份
-
-## 用户属性与事件属性分离
-state=done
-
-重构分析系统架构：
-- 语言、国家、平台信息作为User Properties设置
-- 事件属性只包含事件相关信息，减少重复数据
-- 首次事件时自动设置用户属性
-- 符合Amplitude最佳实践
 
 # 文档维护
 
@@ -75,7 +48,3 @@ make install 更智能一些，能根据系统安装额外的依赖
 1. 缺project_directory
 2. 缺 summary
 3. 不是 JSON
-
-
-# Font issue
-qt.qpa.fonts: Populating font family aliases took 96 ms. Replace uses of missing font family "Segoe UI, Helvetica Neue, Arial, Sans-serif" with one that exists to avoid this cost.

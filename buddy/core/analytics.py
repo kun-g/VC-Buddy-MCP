@@ -14,6 +14,9 @@ import time
 import platform
 import sys
 
+# 导入版本获取模块
+from .version import get_app_version
+
 # 尝试导入Amplitude，如果不存在则使用模拟版本
 try:
     from amplitude import Amplitude, BaseEvent, Identify, EventOptions
@@ -63,6 +66,9 @@ class AnalyticsManager:
         self.config_file = self.config_dir / "analytics_config.json"
         self.device_id = self._get_or_create_device_id()
         
+        # 获取应用版本号（缓存）
+        self.app_version = get_app_version()
+        
         # 收集平台信息
         self.platform_info = self._collect_platform_info()
         
@@ -81,7 +87,7 @@ class AnalyticsManager:
         # 用户属性是否已设置标记
         self._user_properties_set = False
         
-        logging.info(f"Analytics initialized: enabled={self.enabled}, device_id={self.device_id}, platform={self.platform_info.get('os_name')}, ip={self.network_info.get('public_ip', 'unknown')}")
+        logging.info(f"Analytics initialized: enabled={self.enabled}, device_id={self.device_id}, version={self.app_version}, platform={self.platform_info.get('os_name')}, ip={self.network_info.get('public_ip', 'unknown')}")
     
     def _collect_network_info(self) -> Dict[str, Any]:
         """收集网络和IP信息（隐私安全）"""
@@ -429,7 +435,7 @@ class AnalyticsManager:
                 # 用户属性（语言、国家、平台等）已通过identify()设置
                 event_properties.update({
                     'session_id': self.device_id,  # 使用设备ID作为会话标识
-                    'app_version': 'vc-buddy-mcp',  # 应用版本
+                    'app_version': self.app_version,  # 动态获取的应用版本
                 })
                 
                 event = BaseEvent(
