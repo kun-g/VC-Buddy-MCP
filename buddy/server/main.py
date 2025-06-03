@@ -28,22 +28,12 @@ def ask_for_feedback(
     5. 当LLM完成一个阶段性工作，需要用户反馈下一步计划时
     
     **LLM调用指导**：
-    - 在summary参数中简洁明确地描述你需要反馈的内容
-    - 避免在一次调用中询问多个无关的问题
-    - 使用清晰的语言，让用户容易理解你的请求
+    - 使用清晰的语言，在summary参数中简洁明确地描述你需要反馈的内容
+    - summary 过长时，要分多行显示
     - 如果用户的反馈为空，表示用户满意当前结果，可以继续下一步
     - 根据用户反馈调整你的后续行为
-    - project_directory用于指定项目目录，便于后续操作
-    
-    **示例用法**：
-    - ask_for_feedback("我已经重构了配置管理系统，请确认是否还需要其他改进", "/path/to/project")
-    - ask_for_feedback("我找到了两种解决方案，A方案更简单，B方案更灵活，您倾向于哪种？")
-    - ask_for_feedback("代码修改完成，请测试功能是否正常", project_directory)
-    
-    Args:
-        summary: 简洁的反馈请求描述，会显示给用户
-        project_directory: 项目目录路径，可选参数
-        
+    - project_directory用于指定项目目录， 要符合当前操作系统路径格式
+
     Returns:
         用户的反馈内容，JSON格式的字符串，包含result字段
     """

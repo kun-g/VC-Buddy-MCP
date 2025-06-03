@@ -53,7 +53,7 @@ state=done
 
 # 语音输入
 
-### 支持流式语音输入
+## 支持流式语音输入
 语音输入实现流式输入，边说边输入
 你看一下 answer_box_qml.py 就知道了，有一个输入窗口
 不需要语音输入的编辑功能，但是需要用户自定义结束语。比如「我说完了」就结束录音状态，「开工吧」，就直接把当前结果发送过去。
@@ -75,3 +75,7 @@ make install 更智能一些，能根据系统安装额外的依赖
 1. 缺project_directory
 2. 缺 summary
 3. 不是 JSON
+
+
+# Font issue
+qt.qpa.fonts: Populating font family aliases took 96 ms. Replace uses of missing font family "Segoe UI, Helvetica Neue, Arial, Sans-serif" with one that exists to avoid this cost.
