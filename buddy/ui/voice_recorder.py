@@ -120,8 +120,8 @@ class VoiceRecorder(QObject):
             return
         
         try:
-            # 初始化PyAudio
-            self.pyaudio_instance = pyaudio.PyAudio()
+            # 安全地初始化PyAudio
+            self._safe_init_pyaudio()
             
             # 创建音频流
             self.audio_stream = self.pyaudio_instance.open(
@@ -144,8 +144,64 @@ class VoiceRecorder(QObject):
             recording_thread.start()
             
         except Exception as e:
+            print(f"DEBUG: 开始录音失败: {e}")
+            import traceback
+            traceback.print_exc()
+            self._safe_cleanup_resources()
             self.error_occurred.emit(f"开始录音失败: {str(e)}")
     
+    def _safe_init_pyaudio(self):
+        """安全地初始化PyAudio"""
+        try:
+            if self.pyaudio_instance:
+                self._safe_cleanup_resources()
+            
+            self.pyaudio_instance = pyaudio.PyAudio()
+            print(f"DEBUG: PyAudio初始化成功，版本: {pyaudio.get_portaudio_version_text()}")
+            
+            # 检查可用的音频设备
+            device_count = self.pyaudio_instance.get_device_count()
+            print(f"DEBUG: 检测到 {device_count} 个音频设备")
+            
+            # 找到默认输入设备
+            default_input = self.pyaudio_instance.get_default_input_device_info()
+            print(f"DEBUG: 默认输入设备: {default_input['name']}")
+            
+        except Exception as e:
+            print(f"DEBUG: PyAudio初始化失败: {e}")
+            self._safe_cleanup_resources()
+            raise
+    
+    def _safe_cleanup_resources(self):
+        """安全地清理资源"""
+        try:
+            # 停止音频流
+            if self.audio_stream:
+                try:
+                    if not self.audio_stream._is_output:  # 检查是否为输入流
+                        self.audio_stream.stop_stream()
+                except:
+                    pass
+                try:
+                    self.audio_stream.close()
+                except:
+                    pass
+                finally:
+                    self.audio_stream = None
+            
+            # 终止PyAudio
+            if self.pyaudio_instance:
+                try:
+                    self.pyaudio_instance.terminate()
+                except:
+                    pass
+                finally:
+                    self.pyaudio_instance = None
+            
+            print("DEBUG: 资源清理完成")
+        except Exception as e:
+            print(f"DEBUG: 清理资源时出错: {e}")
+
     def stop_recording(self):
         """停止录音"""
         if not self.is_recording:
@@ -154,35 +210,63 @@ class VoiceRecorder(QObject):
         self.is_recording = False
         
         try:
-            # 停止音频流
-            if self.audio_stream:
-                self.audio_stream.stop_stream()
-                self.audio_stream.close()
-                self.audio_stream = None
+            # 等待录音线程结束（最多等待2秒）
+            start_time = time.time()
+            while hasattr(self, '_recording_active') and self._recording_active:
+                if time.time() - start_time > 2.0:
+                    print("DEBUG: 录音线程超时，强制停止")
+                    break
+                time.sleep(0.1)
             
-            # 终止PyAudio
-            if self.pyaudio_instance:
-                self.pyaudio_instance.terminate()
-                self.pyaudio_instance = None
+            # 安全地清理资源
+            self._safe_cleanup_resources()
             
             # 发送录音停止信号
             self.recording_stopped.emit()
             
             # 保存音频文件
-            self._save_audio_file()
+            if self.audio_data:
+                self._save_audio_file()
+            else:
+                self.error_occurred.emit("没有录制到音频数据")
             
         except Exception as e:
+            print(f"DEBUG: 停止录音失败: {e}")
+            import traceback
+            traceback.print_exc()
+            self._safe_cleanup_resources()
             self.error_occurred.emit(f"停止录音失败: {str(e)}")
-    
+
     def _record_audio(self):
         """录音线程函数"""
-        while self.is_recording and self.audio_stream:
-            try:
-                data = self.audio_stream.read(self.chunk_size, exception_on_overflow=False)
-                self.audio_data.append(data)
-            except Exception as e:
-                self.error_occurred.emit(f"录音过程中出错: {str(e)}")
-                break
+        self._recording_active = True
+        try:
+            while self.is_recording and self.audio_stream:
+                try:
+                    data = self.audio_stream.read(self.chunk_size)
+                    if data:
+                        self.audio_data.append(data)
+                except OSError as e:
+                    # 处理缓冲区溢出等PyAudio错误
+                    if "Input overflowed" in str(e) or "overflow" in str(e).lower():
+                        print("DEBUG: 音频缓冲区溢出，继续录音")
+                        time.sleep(0.01)
+                        continue
+                    else:
+                        print(f"DEBUG: PyAudio OSError: {e}")
+                        time.sleep(0.01)
+                except Exception as e:
+                    print(f"DEBUG: 录音数据读取失败: {e}")
+                    # 不立即退出，尝试继续录音
+                    time.sleep(0.01)
+        except Exception as e:
+            print(f"DEBUG: 录音线程异常: {e}")
+            import traceback
+            traceback.print_exc()
+            self.error_occurred.emit(f"录音过程中出错: {str(e)}")
+        finally:
+            self._recording_active = False
+            print("DEBUG: 录音线程结束")
     
     def _save_audio_file(self):
         """保存音频文件"""
@@ -198,12 +282,15 @@ class VoiceRecorder(QObject):
             # 保存为WAV文件
             with wave.open(temp_file.name, 'wb') as wf:
                 wf.setnchannels(self.channels)
-                wf.setsampwidth(pyaudio.get_sample_size(self.format))
+                wf.setsampwidth(2)  # 16位音频 = 2字节
                 wf.setframerate(self.sample_rate)
                 wf.writeframes(b''.join(self.audio_data))
             
             self.last_audio_file = temp_file.name
             self.audio_saved.emit(temp_file.name)
+            
+            # 添加统计
+            track_voice_action("audio_saved")
             
             # 自动开始转写
             self._start_transcription()
@@ -217,12 +304,17 @@ class VoiceRecorder(QObject):
             self.error_occurred.emit("没有找到录音文件")
             return
         
+        track_voice_action("playback_started")
+        
         # 在新线程中播放音频，设置为守护线程
         play_thread = threading.Thread(target=self._play_audio_file, args=(self.last_audio_file,), daemon=True)
         play_thread.start()
     
     def _play_audio_file(self, file_path: str):
         """播放音频文件"""
+        audio_output = None
+        stream = None
+        
         try:
             # 读取音频文件
             with wave.open(file_path, 'rb') as wf:
@@ -242,19 +334,29 @@ class VoiceRecorder(QObject):
                     stream.write(data)
                     data = wf.readframes(chunk_size)
                 
-                # 清理资源
-                stream.stop_stream()
-                stream.close()
-                audio_output.terminate()
-                
         except Exception as e:
             self.error_occurred.emit(f"播放音频失败: {str(e)}")
+        finally:
+            # 确保清理资源
+            if stream:
+                try:
+                    stream.stop_stream()
+                    stream.close()
+                except:
+                    pass
+            if audio_output:
+                try:
+                    audio_output.terminate()
+                except:
+                    pass
     
     def _start_transcription(self):
         """开始转写音频"""
         if not self.openai_client:
             self.error_occurred.emit("OpenAI API 未配置，无法进行语音转写")
             return
+        
+        track_voice_action("transcription_started")
         
         # 在新线程中进行转写，设置为守护线程防止程序卡死
         transcription_thread = threading.Thread(target=self._transcribe_audio, daemon=True)
@@ -270,67 +372,120 @@ class VoiceRecorder(QObject):
             print(f"DEBUG: 开始转写音频文件: {self.last_audio_file}")
             print(f"DEBUG: 使用API URL: {self.openai_client.base_url}")
             
+            # 验证音频文件完整性
+            try:
+                with wave.open(self.last_audio_file, 'rb') as test_wf:
+                    frames = test_wf.getnframes()
+                    if frames == 0:
+                        self.error_occurred.emit("音频文件为空，无法进行转写")
+                        return
+                    print(f"DEBUG: 音频文件验证成功，帧数: {frames}")
+            except Exception as e:
+                self.error_occurred.emit(f"音频文件损坏或格式错误: {str(e)}")
+                return
+            
             # 调用 OpenAI Whisper API
-            with open(self.last_audio_file, 'rb') as audio_file:
-                try:
-                    # 首先尝试标准的Whisper API调用
+            transcript = None
+            try:
+                with open(self.last_audio_file, 'rb') as audio_file:
+                    print("DEBUG: 开始调用 OpenAI API...")
+                    
+                    # 创建一个新的文件对象，避免文件句柄问题
+                    audio_data = audio_file.read()
+                    
+                    # 使用BytesIO创建临时文件对象
+                    import io
+                    audio_buffer = io.BytesIO(audio_data)
+                    audio_buffer.name = "audio.wav"  # 给BytesIO对象一个名称
+                    
                     transcript = self.openai_client.audio.transcriptions.create(
                         model="whisper-1",
-                        file=audio_file,
+                        file=audio_buffer,
                         language="zh"  # 指定中文
                     )
-                    print(f"DEBUG: API响应类型: {type(transcript)}")
+                    print(f"DEBUG: API调用成功，响应类型: {type(transcript)}")
                     print(f"DEBUG: API响应内容: {transcript}")
-                except Exception as api_error:
-                    print(f"DEBUG: Whisper API调用异常: {api_error}")
                     
-                    # 检查是否是第三方API服务器不支持Whisper的问题
-                    if "not found" in str(api_error).lower() or "404" in str(api_error):
-                        self.error_occurred.emit(f"第三方API服务器不支持Whisper音频转写功能。\n请使用支持Whisper API的服务器或联系管理员。\n错误详情: {str(api_error)}")
-                    elif "401" in str(api_error):
-                        self.error_occurred.emit(f"API密钥无效或权限不足: {str(api_error)}")
-                    elif "openai" in str(api_error).lower():
-                        self.error_occurred.emit(f"OpenAI客户端错误: {str(api_error)}")
-                    else:
-                        self.error_occurred.emit(f"API调用失败: {str(api_error)}")
-                    return
+            except Exception as api_error:
+                print(f"DEBUG: Whisper API调用异常: {api_error}")
+                import traceback
+                traceback.print_exc()
+                
+                # 检查是否是第三方API服务器不支持Whisper的问题
+                error_str = str(api_error).lower()
+                if "not found" in error_str or "404" in error_str:
+                    self.error_occurred.emit(f"第三方API服务器不支持Whisper音频转写功能。\n请使用支持Whisper API的服务器或联系管理员。\n错误详情: {str(api_error)}")
+                elif "401" in error_str or "unauthorized" in error_str:
+                    self.error_occurred.emit(f"API密钥无效或权限不足: {str(api_error)}")
+                elif "403" in error_str or "forbidden" in error_str:
+                    self.error_occurred.emit(f"API访问被拒绝: {str(api_error)}")
+                elif "connection" in error_str or "timeout" in error_str:
+                    self.error_occurred.emit(f"网络连接问题: {str(api_error)}")
+                elif "openai" in error_str:
+                    self.error_occurred.emit(f"OpenAI客户端错误: {str(api_error)}")
+                else:
+                    self.error_occurred.emit(f"API调用失败: {str(api_error)}")
+                
+                track_voice_action("transcription_error")
+                return
             
             # 处理不同格式的响应
             transcription_text = ""
-            if hasattr(transcript, 'text'):
-                # 标准OpenAI API响应对象
-                transcription_text = transcript.text
-                print(f"DEBUG: 使用 .text 属性获取转写结果")
-            elif isinstance(transcript, str):
-                # 某些API服务器可能直接返回字符串
-                transcription_text = transcript
-                print(f"DEBUG: API直接返回字符串")
-            elif isinstance(transcript, dict) and 'text' in transcript:
-                # 字典格式响应
-                transcription_text = transcript['text']
-                print(f"DEBUG: 使用字典['text']获取转写结果")
-            else:
-                # 检查是否是HTML响应（表示API调用错误）
-                transcript_str = str(transcript)
-                if '<html' in transcript_str.lower() or '<!doctype html' in transcript_str.lower():
-                    self.error_occurred.emit("API返回HTML页面，可能是endpoint错误或API不支持Whisper格式")
-                    return
+            try:
+                if hasattr(transcript, 'text'):
+                    # 标准OpenAI API响应对象
+                    transcription_text = transcript.text
+                    print(f"DEBUG: 使用 .text 属性获取转写结果")
+                elif isinstance(transcript, str):
+                    # 某些API服务器可能直接返回字符串
+                    transcription_text = transcript
+                    print(f"DEBUG: API直接返回字符串")
+                elif isinstance(transcript, dict) and 'text' in transcript:
+                    # 字典格式响应
+                    transcription_text = transcript['text']
+                    print(f"DEBUG: 使用字典['text']获取转写结果")
                 else:
-                    # 尝试转换为字符串
-                    transcription_text = transcript_str
-                    print(f"DEBUG: 转换为字符串: {transcription_text[:100]}...")
+                    # 检查是否是HTML响应（表示API调用错误）
+                    transcript_str = str(transcript)
+                    if '<html' in transcript_str.lower() or '<!doctype html' in transcript_str.lower():
+                        self.error_occurred.emit("API返回HTML页面，可能是endpoint错误或API不支持Whisper格式")
+                        return
+                    else:
+                        # 尝试转换为字符串
+                        transcription_text = transcript_str
+                        print(f"DEBUG: 转换为字符串: {transcription_text[:100]}...")
+            except Exception as parse_error:
+                print(f"DEBUG: 解析响应时出错: {parse_error}")
+                self.error_occurred.emit(f"解析API响应失败: {str(parse_error)}")
+                track_voice_action("transcription_parse_error")
+                return
             
             print(f"DEBUG: 最终转写结果: {transcription_text}")
             
             # 发送转写结果
-            if transcription_text.strip():
-                self.transcription_ready.emit(transcription_text)
+            if transcription_text and transcription_text.strip():
+                self.transcription_ready.emit(transcription_text.strip())
+                track_voice_action("transcription_completed")
+                print("DEBUG: 转写结果已发送")
             else:
                 self.error_occurred.emit("语音转写结果为空")
+                track_voice_action("transcription_empty")
             
         except Exception as e:
-            print(f"DEBUG: 转写过程异常: {e}")
+            print(f"DEBUG: 转写过程发生未预期异常: {e}")
+            import traceback
+            traceback.print_exc()
             self.error_occurred.emit(f"语音转写失败: {str(e)}")
+            track_voice_action("transcription_unexpected_error")
+        finally:
+            # 确保清理临时资源
+            try:
+                if hasattr(self, 'last_audio_file') and self.last_audio_file:
+                    print(f"DEBUG: 保留音频文件用于调试: {self.last_audio_file}")
+                    # 暂时不删除文件，用于调试
+                    # os.unlink(self.last_audio_file)
+            except Exception:
+                pass
     
     def cleanup(self):
         """清理临时文件"""

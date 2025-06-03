@@ -318,6 +318,46 @@ ApplicationWindow {
                             }
                         }
                         
+                        // 语音设置按钮
+                        Button {
+                            id: voiceSettingsButton
+                            Layout.fillWidth: true
+                            text: "⚙️ 语音设置"
+                            font.pixelSize: Theme.fonts.small
+                            font.family: Theme.fonts.family
+                            enabled: backend && !backend.isRecording  // 录音时禁用
+                            
+                            background: Rectangle {
+                                color: voiceSettingsButton.pressed ? "#e9ecef" : 
+                                       voiceSettingsButton.hovered ? "#f8f9fa" : "#ffffff"
+                                border.color: "#dee2e6"
+                                border.width: 1
+                                radius: Theme.radius.normal
+                                opacity: voiceSettingsButton.enabled ? 1.0 : 0.5
+                                
+                                Behavior on color {
+                                    ColorAnimation {
+                                        duration: Theme.animation.fast
+                                        easing.type: Easing.OutQuad
+                                    }
+                                }
+                            }
+                            
+                            contentItem: Text {
+                                text: voiceSettingsButton.text
+                                font: voiceSettingsButton.font
+                                opacity: enabled ? 1.0 : 0.5
+                                color: "#495057"
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                                elide: Text.ElideRight
+                            }
+                            
+                            onClicked: {
+                                if (backend) backend.openVoiceSettings()
+                            }
+                        }
+                        
                         // 发送按钮
                         Button {
                             id: sendButton
@@ -392,9 +432,55 @@ ApplicationWindow {
             }
         }
         
+        function onVoiceTranscriptionChunkReady(chunk) {
+            // 实时显示转写片段
+            if (chunk.trim() !== "") {
+                // 如果当前正在录音，则在输入框末尾追加新的转写片段
+                if (backend && backend.isRecording) {
+                    if (inputArea.text.trim() !== "") {
+                        // 检查是否已经包含了这个片段
+                        if (!inputArea.text.endsWith(chunk)) {
+                            inputArea.text += " " + chunk
+                        }
+                    } else {
+                        inputArea.text = chunk
+                    }
+                    inputArea.forceActiveFocus()
+                    // 自动滚动到末尾
+                    inputArea.cursorPosition = inputArea.length
+                }
+            }
+        }
+        
+        function onVoiceCommandDetected(commandType, text) {
+            if (commandType === "send") {
+                // 检测到发送命令，自动点击发送按钮
+                console.log("检测到发送命令:", text)
+                // 延迟一下，确保转写完成
+                sendDelayTimer.start()
+            } else if (commandType === "stop") {
+                console.log("检测到停止命令:", text)
+                // 停止命令已经在后端处理了，这里可以显示提示
+            }
+        }
+        
         function onVoiceErrorOccurred(errorMessage) {
             console.log("语音错误:", errorMessage)
             // 可以在这里添加错误提示UI
+        }
+    }
+    
+    // 添加延迟发送定时器
+    Timer {
+        id: sendDelayTimer
+        interval: 500  // 500ms 延迟
+        onTriggered: {
+            if (backend) {
+                var currentText = backend.getCurrentTranscription()
+                if (currentText.trim() !== "") {
+                    backend.sendResponse(currentText)
+                }
+            }
         }
     }
     
