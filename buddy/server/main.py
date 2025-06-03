@@ -4,6 +4,7 @@ from fastmcp import FastMCP
 import subprocess
 import json
 import os
+import sys
 
 mcp = FastMCP(
     name="Vibe Coding Buddy",
@@ -49,18 +50,30 @@ def ask_for_feedback(
     # 准备传递给answer_box的数据
     input_data = {"summary": summary, "project_directory": project_directory}
     
-    # 启动 ui/answer_box.py,获取 stdout
-    process = subprocess.Popen(
-        # ["python", "buddy/ui/answer_box.py"], 
-        ["python", "buddy/ui/answer_box_qml.py"], 
-        stdout=subprocess.PIPE, 
-        stdin=subprocess.PIPE, 
-        text=True,
-    )
-    process.stdin.write(json.dumps(input_data, ensure_ascii=False))
-    process.stdin.flush()
-    stdout, _ = process.communicate()
-    return stdout or '{"result": ""}'
+    # 使用上下文管理器确保子进程正确清理
+    try:
+        with subprocess.Popen(
+            [sys.executable, "buddy/ui/answer_box_qml.py"], 
+            stdout=subprocess.PIPE, 
+            stdin=subprocess.PIPE, 
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=0  # 无缓冲，立即刷新
+        ) as process:
+            # 写入数据并关闭stdin
+            input_json = json.dumps(input_data, ensure_ascii=False)
+            stdout, stderr = process.communicate(input=input_json)
+            
+            # 检查子进程是否正常退出
+            if process.returncode != 0:
+                print(f"子进程异常退出 (code: {process.returncode}): {stderr}", file=sys.stderr)
+                return '{"result": ""}'
+            
+            return stdout or '{"result": ""}'
+            
+    except Exception as e:
+        print(f"启动子进程时出错: {e}", file=sys.stderr)
+        return '{"result": ""}'
 
 if __name__ == "__main__":
     mcp.run(transport="stdio")
