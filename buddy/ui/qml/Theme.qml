@@ -50,7 +50,17 @@ QtObject {
     
     // 字体
     readonly property QtObject fonts: QtObject {
-        readonly property string family: "Segoe UI, Helvetica Neue, Arial, sans-serif"
+        readonly property string family: {
+            // 根据平台选择最佳字体，使用系统中真正存在的字体
+            if (Qt.platform.os === "osx" || Qt.platform.os === "macos") {
+                return "Helvetica Neue"
+            } else if (Qt.platform.os === "windows") {
+                return "Segoe UI"
+            } else {
+                // Linux 和其他平台
+                return "Arial"
+            }
+        }
         readonly property int small: 10
         readonly property int normal: 12
         readonly property int medium: 14

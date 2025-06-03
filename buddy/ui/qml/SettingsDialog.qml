@@ -398,7 +398,16 @@ Window {
                             id: configPathLabel
                             text: getConfigPath()
                             font.pixelSize: Theme.fonts.small
-                            font.family: "Monaco, Consolas, monospace"
+                            font.family: {
+                                // 跨平台等宽字体，使用系统中真正存在的字体
+                                if (Qt.platform.os === "osx" || Qt.platform.os === "macos") {
+                                    return "Monaco, Menlo, monospace"
+                                } else if (Qt.platform.os === "windows") {
+                                    return "Consolas, Courier New, monospace"
+                                } else {
+                                    return "Ubuntu Mono, Liberation Mono, Courier New, monospace"
+                                }
+                            }
                             color: Theme.colors.textSecondary
                             wrapMode: Text.WrapAnywhere
                             Layout.fillWidth: true
