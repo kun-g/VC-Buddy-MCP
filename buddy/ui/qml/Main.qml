@@ -13,6 +13,24 @@ ApplicationWindow {
     width: backend && backend.hasValidSavedGeometry() ? backend.savedWidth : (backend ? backend.defaultWidth : 400)
     height: backend && backend.hasValidSavedGeometry() ? backend.savedHeight : (backend ? backend.defaultHeight : 600)
     
+    // Ctrl+R 录音快捷键
+    Shortcut {
+        sequence: "Ctrl+R"
+        onActivated: {
+            if (backend) {
+                backend.toggleRecordingShortcut()
+            }
+        }
+    }
+    
+    // Ctrl+E 发送快捷键
+    Shortcut {
+        sequence: "Ctrl+E"
+        onActivated: {
+            sendButton.clicked()
+        }
+    }
+    
     // 窗口位置（如果有保存的位置）
     Component.onCompleted: {
         if (backend && backend.hasValidSavedGeometry()) {
@@ -25,6 +43,11 @@ ApplicationWindow {
             y = (Screen.height - height) / 2
             console.log("DEBUG: 居中显示窗口:", x, y, width, height)
         }
+        
+        // 连接语音设置信号
+        if (backend) {
+            backend.voiceSettingsRequested.connect(openVoiceSettingsDialog)
+        }
     }
     
     title: backend ? backend.windowTitle : "Answer Box"
@@ -35,6 +58,32 @@ ApplicationWindow {
     // Material 主题设置
     Material.theme: Material.Light
     Material.accent: Theme.colors.primary
+    
+    // 语音设置对话框
+    property var voiceSettingsDialog: null
+    
+    function openVoiceSettingsDialog(configManager) {
+        if (!voiceSettingsDialog) {
+            var component = Qt.createComponent("VoiceSettingsDialog.qml")
+            if (component.status === Component.Ready) {
+                voiceSettingsDialog = component.createObject(window)
+                voiceSettingsDialog.settingsSaved.connect(function(stopCommands, sendCommands) {
+                    if (backend) {
+                        backend.onVoiceSettingsSaved(stopCommands, sendCommands)
+                    }
+                })
+            } else {
+                console.error("Failed to create VoiceSettingsDialog:", component.errorString())
+                return
+            }
+        }
+        
+        if (voiceSettingsDialog) {
+            voiceSettingsDialog.configManager = configManager
+            voiceSettingsDialog.loadSettings()
+            voiceSettingsDialog.show()
+        }
+    }
     
     // 主布局
     ColumnLayout {
@@ -278,16 +327,27 @@ ApplicationWindow {
                         Button {
                             id: voiceButton
                             Layout.fillWidth: true
-                            text: backend && backend.isRecording ? "⏹️ 停止录音" : "🎤 录音"
+                            text: {
+                                if (backend && backend.isRecording) {
+                                    return "⏹️ 停止录音 (Ctrl+R)"
+                                } else if (backend && backend.isTranscribing) {
+                                    return "🔄 正在识别..."
+                                } else {
+                                    return "🎤 录音 (Ctrl+R)"
+                                }
+                            }
                             font.bold: true
                             font.pixelSize: Theme.fonts.normal
                             font.family: Theme.fonts.family
+                            enabled: backend && !backend.isTranscribing  // 识别中禁用按钮
                             
                             background: Rectangle {
                                 color: {
                                     if (backend && backend.isRecording) {
                                         return voiceButton.pressed ? "#d32f2f" : 
                                                voiceButton.hovered ? "#d32f2f" : "#f44336"
+                                    } else if (backend && backend.isTranscribing) {
+                                        return "#ff9800"  // 橙色表示正在识别
                                     } else {
                                         return voiceButton.pressed ? "#388e3c" : 
                                                voiceButton.hovered ? "#388e3c" : "#4caf50"
@@ -326,6 +386,7 @@ ApplicationWindow {
                             font.pixelSize: Theme.fonts.small
                             font.family: Theme.fonts.family
                             enabled: backend && !backend.isRecording  // 录音时禁用
+                            visible: false  // 隐藏语音设置按钮
                             
                             background: Rectangle {
                                 color: voiceSettingsButton.pressed ? "#e9ecef" : 
@@ -362,7 +423,7 @@ ApplicationWindow {
                         Button {
                             id: sendButton
                             Layout.fillWidth: true
-                            text: "📤 Send (Ctrl+Enter)"
+                            text: "📤 Send (Ctrl+E)"
                             font.bold: true
                             font.pixelSize: Theme.fonts.normal
                             font.family: Theme.fonts.family
@@ -419,6 +480,8 @@ ApplicationWindow {
                 inputArea.text = content
             }
             inputArea.forceActiveFocus()
+            // 将光标移动到输入结果的末尾
+            inputArea.cursorPosition = inputArea.length
         }
         
         function onVoiceTranscriptionReady(transcription) {
@@ -429,27 +492,14 @@ ApplicationWindow {
                     inputArea.text = transcription
                 }
                 inputArea.forceActiveFocus()
+                // 将光标移动到输入结果的末尾
+                inputArea.cursorPosition = inputArea.length
             }
         }
         
         function onVoiceTranscriptionChunkReady(chunk) {
-            // 实时显示转写片段
-            if (chunk.trim() !== "") {
-                // 如果当前正在录音，则在输入框末尾追加新的转写片段
-                if (backend && backend.isRecording) {
-                    if (inputArea.text.trim() !== "") {
-                        // 检查是否已经包含了这个片段
-                        if (!inputArea.text.endsWith(chunk)) {
-                            inputArea.text += " " + chunk
-                        }
-                    } else {
-                        inputArea.text = chunk
-                    }
-                    inputArea.forceActiveFocus()
-                    // 自动滚动到末尾
-                    inputArea.cursorPosition = inputArea.length
-                }
-            }
+            // 传统录音模式不支持实时转写片段，此方法保留但不执行任何操作
+            console.log("传统录音模式收到转写片段（忽略）:", chunk)
         }
         
         function onVoiceCommandDetected(commandType, text) {
