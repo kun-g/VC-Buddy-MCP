@@ -57,8 +57,6 @@ Traceback (most recent call last):
     raise self._make_status_error_from_response(err.response) from None
 openai.BadRequestError: Error code: 400 - {'error': {'message': "Unrecognized file format. Supported formats: ['flac', 'm4a', 'mp3', 'mp4', 'mpeg', 'mpga', 'oga', 'ogg', 'wav', 'webm']    (request id: 20250603105950629342806Ejeh0i0y)", 'type': 'invalid_request_error'}}
 
-
-
 ### 流式输入时没有实时输出结果
 流式输入时没有实时输出结果
 下面是录音时的日志输出，看起来是在持续处理，但是界面上并没有更新返回结果，那有么有在处理呢？
