@@ -19,6 +19,8 @@ ApplicationWindow {
         onActivated: {
             if (backend) {
                 backend.toggleRecordingShortcut()
+                // 统计快捷键使用
+                backend.trackShortcutUsed("Ctrl+R", "toggle_recording")
             }
         }
     }
@@ -28,6 +30,10 @@ ApplicationWindow {
         sequence: "Ctrl+E"
         onActivated: {
             sendButton.clicked()
+            // 统计快捷键使用
+            if (backend) {
+                backend.trackShortcutUsed("Ctrl+E", "send_message")
+            }
         }
     }
     
@@ -37,6 +43,8 @@ ApplicationWindow {
         onActivated: {
             if (backend) {
                 backend.openSettings()
+                // 统计快捷键使用
+                backend.trackShortcutUsed("Ctrl+,", "open_settings")
             }
         }
     }

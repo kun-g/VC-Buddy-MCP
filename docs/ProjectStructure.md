@@ -5,7 +5,7 @@ VC-Buddy-MCP/
 │   ├── core/                       # 核心模块
 │   │   ├── ai_provider.py         # AI 提供商抽象层
 │   │   ├── prompt_manager.py      # Prompt 流管理
-│   │   ├── analytics.py           # 数据统计模块 ⭐ 新增，支持Amplitude集成
+│   │   ├── analytics.py           # 数据统计模块 ⭐ 新增，支持Amplitude集成，增强平台统计功能
 │   │   └── config.py              # 配置管理 ⭐ 已扩展OpenAI API Key和API URL支持
 │   ├── server/                     # MCP 服务器
 │   │   └── main.py                # FastMCP 服务器实现
@@ -13,13 +13,13 @@ VC-Buddy-MCP/
 │   │   └── test.py                # 客户端测试脚本
 │   ├── ui/                         # PySide6 GUI
 │   │   ├── answer_box.py          # Answer Box 传统界面 ⭐ 已优化，集成数据统计
-│   │   ├── answer_box_qml.py      # Answer Box QML版本 ⭐ 已升级，支持流式语音输入和QML语音设置，新增Ctrl+,快捷键设置功能
+│   │   ├── answer_box_qml.py      # Answer Box QML版本 ⭐ 已升级，支持流式语音输入和QML语音设置，新增Ctrl+,快捷键设置功能，增强埋点统计
 │   │   ├── style_manager.py       # 样式管理器 ⭐ 新增
 │   │   ├── qml/                   # QML 界面文件 ⭐ 新增
-│   │   │   ├── Main.qml           # 主界面 QML ⭐ 支持流式语音输入显示，新增Ctrl+,快捷键
+│   │   │   ├── Main.qml           # 主界面 QML ⭐ 支持流式语音输入显示，新增Ctrl+,快捷键，集成快捷键使用统计
 │   │   │   ├── TodoItemDelegate.qml # TODO 项目组件 ⭐ 使用主题系统
 │   │   │   ├── VoiceSettingsDialog.qml # QML语音设置对话框 ⭐ 新增，替代Qt Widgets版本
-│   │   │   ├── SettingsDialog.qml # QML主设置对话框 ⭐ 新增，支持OpenAI API配置，支持Ctrl+,快捷键调用
+│   │   │   ├── SettingsDialog.qml # QML主设置对话框 ⭐ 新增，支持OpenAI API配置，支持Ctrl+,快捷键调用，集成配置操作统计
 │   │   │   ├── Theme.qml          # QML 主题定义 ⭐ 新增
 │   │   │   ├── styles.qss         # QSS 样式文件 ⭐ 移动到qml目录
 │   │   │   └── qmldir             # QML 模块配置 ⭐ 已更新
@@ -31,7 +31,8 @@ VC-Buddy-MCP/
 │   └── tests/                      # 测试文件
 │       ├── test_basic.py          # 基础测试
 │       ├── test_todo_parser.py    # TODO 解析器单元测试 ⭐ 新增，包含32个测试用例
-│       └── test_analytics.py      # 数据统计模块单元测试 ⭐ 新增，包含10个测试用例
+│       ├── test_analytics.py      # 数据统计模块单元测试 ⭐ 新增，包含10个测试用例
+│       └── test_analytics_platform.py # 平台统计功能测试 ⭐ 新增，验证平台信息收集和事件跟踪
 ├── tools/                          # 工具目录 ⭐ 新增
 │   ├── voice_test_unified.py      # 统一语音测试工具 ⭐ 新增，合并传统和流式测试功能
 │   ├── settings_dialog.py         # 设置对话框 ⭐ 新增，支持API Key和API URL配置

@@ -595,6 +595,24 @@ class AnswerBoxBackend(QObject):
             track_button_clicked("settings_opened")
         except Exception as e:
             self.voiceErrorOccurred.emit(f"打开设置失败: {str(e)}")
+    
+    @Slot(str, str)
+    def trackShortcutUsed(self, shortcut_name: str, action: str):
+        """统计快捷键使用"""
+        try:
+            from ..core.analytics import track_shortcut_used
+            track_shortcut_used(shortcut_name, action)
+        except Exception as e:
+            print(f"Failed to track shortcut usage: {e}", file=sys.stderr)
+    
+    @Slot(str, str)
+    def trackConfigAction(self, action: str, config_type: str):
+        """统计配置操作"""
+        try:
+            from ..core.analytics import track_config_action
+            track_config_action(action, config_type)
+        except Exception as e:
+            print(f"Failed to track config action: {e}", file=sys.stderr)
 
     @Slot('QVariant', 'QVariant')
     def onVoiceSettingsSaved(self, stopCommands, sendCommands):

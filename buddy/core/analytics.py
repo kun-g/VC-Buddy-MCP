@@ -11,6 +11,8 @@ from pathlib import Path
 import json
 import threading
 import time
+import platform
+import sys
 
 # 尝试导入Amplitude，如果不存在则使用模拟版本
 try:
@@ -44,6 +46,9 @@ class AnalyticsManager:
         self.config_file = self.config_dir / "analytics_config.json"
         self.device_id = self._get_or_create_device_id()
         
+        # 收集平台信息
+        self.platform_info = self._collect_platform_info()
+        
         # 初始化Amplitude
         self.amplitude = Amplitude(api_key) if AMPLITUDE_AVAILABLE else Amplitude(api_key)
         
@@ -53,7 +58,83 @@ class AnalyticsManager:
         # 线程安全锁
         self._lock = threading.Lock()
         
-        logging.info(f"Analytics initialized: enabled={self.enabled}, device_id={self.device_id}")
+        logging.info(f"Analytics initialized: enabled={self.enabled}, device_id={self.device_id}, platform={self.platform_info.get('os_name')}")
+    
+    def _collect_platform_info(self) -> Dict[str, Any]:
+        """收集平台信息（隐私安全）"""
+        try:
+            info = {
+                'os_name': platform.system(),  # Windows, Darwin, Linux
+                'os_version': platform.release(),  # 操作系统版本
+                'architecture': platform.machine(),  # x86_64, arm64, etc.
+                'python_version': f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+                'platform_summary': platform.platform(),  # 综合平台信息
+            }
+            
+            # 针对不同操作系统添加特定信息
+            if info['os_name'] == 'Darwin':  # macOS
+                try:
+                    # 从platform获取macOS版本信息
+                    mac_version = platform.mac_ver()[0]
+                    if mac_version:
+                        info['os_friendly_name'] = f"macOS {mac_version}"
+                    else:
+                        info['os_friendly_name'] = "macOS"
+                except Exception:
+                    info['os_friendly_name'] = "macOS"
+            elif info['os_name'] == 'Windows':
+                try:
+                    # Windows版本信息
+                    win_version = platform.win32_ver()[0]
+                    if win_version:
+                        info['os_friendly_name'] = f"Windows {win_version}"
+                    else:
+                        info['os_friendly_name'] = "Windows"
+                except Exception:
+                    info['os_friendly_name'] = "Windows"
+            elif info['os_name'] == 'Linux':
+                try:
+                    # Linux发行版信息
+                    linux_dist = platform.freedesktop_os_release()
+                    if linux_dist and 'NAME' in linux_dist:
+                        info['os_friendly_name'] = linux_dist['NAME']
+                    else:
+                        info['os_friendly_name'] = "Linux"
+                except Exception:
+                    info['os_friendly_name'] = "Linux"
+            else:
+                info['os_friendly_name'] = info['os_name']
+            
+            # 检测是否为Apple Silicon
+            if info['os_name'] == 'Darwin' and info['architecture'] == 'arm64':
+                info['is_apple_silicon'] = True
+            else:
+                info['is_apple_silicon'] = False
+            
+            # 检测处理器类型
+            if info['architecture'] in ['x86_64', 'AMD64']:
+                info['processor_type'] = 'x64'
+            elif info['architecture'] in ['arm64', 'aarch64']:
+                info['processor_type'] = 'arm64'
+            elif info['architecture'].startswith('arm'):
+                info['processor_type'] = 'arm'
+            else:
+                info['processor_type'] = info['architecture']
+            
+            return info
+            
+        except Exception as e:
+            logging.warning(f"Failed to collect platform info: {e}")
+            return {
+                'os_name': 'unknown',
+                'os_version': 'unknown',
+                'architecture': 'unknown',
+                'python_version': f"{sys.version_info.major}.{sys.version_info.minor}",
+                'platform_summary': 'unknown',
+                'os_friendly_name': 'unknown',
+                'is_apple_silicon': False,
+                'processor_type': 'unknown'
+            }
     
     def _get_or_create_device_id(self) -> str:
         """获取或创建设备ID"""
@@ -132,6 +213,17 @@ class AnalyticsManager:
             with self._lock:
                 event_properties = properties or {}
                 event_properties['timestamp'] = time.time()
+                
+                # 自动添加平台信息到所有事件
+                event_properties.update({
+                    'platform_os': self.platform_info['os_name'],
+                    'platform_os_version': self.platform_info['os_version'],
+                    'platform_architecture': self.platform_info['architecture'],
+                    'platform_python_version': self.platform_info['python_version'],
+                    'platform_friendly_name': self.platform_info['os_friendly_name'],
+                    'platform_processor_type': self.platform_info['processor_type'],
+                    'platform_is_apple_silicon': self.platform_info['is_apple_silicon'],
+                })
                 
                 event = BaseEvent(
                     event_type=event_type,

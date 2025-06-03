@@ -67,6 +67,15 @@ Window {
             configManager.set("openai.api_key", apiKey)
             configManager.set("openai.api_url", apiUrl)
             configManager.save_config()
+            
+            // 统计配置保存操作
+            try {
+                if (typeof backend !== 'undefined' && backend && backend.trackConfigAction) {
+                    backend.trackConfigAction("save_settings", "openai_config")
+                }
+            } catch (e) {
+                console.log("Failed to track config save:", e)
+            }
         }
         
         settingsSaved()
@@ -79,6 +88,15 @@ Window {
         if (!apiKey) {
             showMessage("测试失败", "请先输入 API Key", false)
             return
+        }
+        
+        // 统计测试连接操作
+        try {
+            if (typeof backend !== 'undefined' && backend && backend.trackConfigAction) {
+                backend.trackConfigAction("test_connection", "openai_api")
+            }
+        } catch (e) {
+            console.log("Failed to track test connection:", e)
         }
         
         isTestingConnection = true
@@ -236,7 +254,18 @@ Window {
                                     verticalAlignment: Text.AlignVCenter
                                 }
                                 
-                                onClicked: apiKeyVisible = !apiKeyVisible
+                                onClicked: {
+                                    apiKeyVisible = !apiKeyVisible
+                                    
+                                    // 统计API Key可见性切换
+                                    try {
+                                        if (typeof backend !== 'undefined' && backend && backend.trackConfigAction) {
+                                            backend.trackConfigAction("toggle_api_key_visibility", "security")
+                                        }
+                                    } catch (e) {
+                                        console.log("Failed to track API key visibility toggle:", e)
+                                    }
+                                }
                             }
                         }
                     }
