@@ -20,6 +20,8 @@
 - **Python 3.11+**
 - **uv** (推荐的包管理器)
 
+### 2. 一键安装
+
 ```bash
 # 安装 uv (如果尚未安装)
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -27,15 +29,21 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 # 克隆项目
 git clone <repo-url>
 cd VC-Buddy-MCP
+
+# 🎉 一键安装所有依赖（包括系统级依赖）
+make install
 ```
 
-### 2. 安装依赖
+**智能依赖安装说明：**
+- **macOS**: 自动使用 Homebrew 安装 `portaudio`
+- **Ubuntu/Debian**: 自动安装 `portaudio19-dev python3-dev`
+- **CentOS/RHEL**: 自动安装 `portaudio-devel python3-devel`  
+- **Fedora**: 自动安装 `portaudio-devel python3-devel`
+- **Arch Linux**: 自动安装 `portaudio`
 
+如果只想安装系统依赖：
 ```bash
-# 使用 uv 安装所有依赖
-make install
-# 或者直接运行
-uv sync
+make install-system-deps
 ```
 
 ### 3. 配置 MCP 服务器
@@ -184,16 +192,25 @@ uv run mypy .
 
 ### 常见问题
 
-**1. PyAudio 安装失败**
+**1. 音频依赖安装失败**
+如果 `make install` 自动安装失败，请手动安装：
 ```bash
 # macOS
 brew install portaudio
-uv add pyaudio
 
-# Ubuntu/Debian
-sudo apt-get install portaudio19-dev
-uv add pyaudio
+# Ubuntu/Debian  
+sudo apt-get install portaudio19-dev python3-dev
+
+# CentOS/RHEL
+sudo yum install portaudio-devel python3-devel
+
+# Fedora
+sudo dnf install portaudio-devel python3-devel
+
+# Arch Linux
+sudo pacman -S portaudio
 ```
+然后重新运行：`make install`
 
 **2. OpenAI API 错误**
 - 检查 `OPENAI_API_KEY` 环境变量

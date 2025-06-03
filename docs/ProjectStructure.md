@@ -45,7 +45,7 @@ VC-Buddy-MCP/
 │   └── prd.md                     # 产品需求文档 ⭐ 新增
 ├── LICENSE                         # MIT 许可证文件 ⭐ 新增
 ├── pyproject.toml                  # uv 项目配置 ⭐ 已更新依赖
-├── Makefile                        # 开发任务 ⭐ 已优化，智能依赖管理
+├── Makefile                        # 开发任务 ⭐ 已优化，智能依赖管理，支持跨平台系统依赖自动安装
 ├── TODO.md                         # 项目 TODO 列表 ⭐ 已更新
 └── README.md                       # 项目文档 ⭐ 已优化
 
