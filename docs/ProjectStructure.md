@@ -13,12 +13,13 @@ VC-Buddy-MCP/
 │   │   └── test.py                # 客户端测试脚本
 │   ├── ui/                         # PySide6 GUI
 │   │   ├── answer_box.py          # Answer Box 传统界面 ⭐ 已优化，集成数据统计
-│   │   ├── answer_box_qml.py      # Answer Box QML版本 ⭐ 已升级，支持流式语音输入和QML语音设置
+│   │   ├── answer_box_qml.py      # Answer Box QML版本 ⭐ 已升级，支持流式语音输入和QML语音设置，新增Ctrl+,快捷键设置功能
 │   │   ├── style_manager.py       # 样式管理器 ⭐ 新增
 │   │   ├── qml/                   # QML 界面文件 ⭐ 新增
-│   │   │   ├── Main.qml           # 主界面 QML ⭐ 支持流式语音输入显示
+│   │   │   ├── Main.qml           # 主界面 QML ⭐ 支持流式语音输入显示，新增Ctrl+,快捷键
 │   │   │   ├── TodoItemDelegate.qml # TODO 项目组件 ⭐ 使用主题系统
 │   │   │   ├── VoiceSettingsDialog.qml # QML语音设置对话框 ⭐ 新增，替代Qt Widgets版本
+│   │   │   ├── SettingsDialog.qml # QML主设置对话框 ⭐ 新增，支持OpenAI API配置，支持Ctrl+,快捷键调用
 │   │   │   ├── Theme.qml          # QML 主题定义 ⭐ 新增
 │   │   │   ├── styles.qss         # QSS 样式文件 ⭐ 移动到qml目录
 │   │   │   └── qmldir             # QML 模块配置 ⭐ 已更新

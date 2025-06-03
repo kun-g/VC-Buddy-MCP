@@ -192,6 +192,11 @@ class ConfigManager:
     def has_openai_api_key(self) -> bool:
         """检查是否有可用的OpenAI API Key"""
         return bool(self.openai_api_key)
+    
+    @property
+    def config_file_path(self) -> str:
+        """获取当前使用的配置文件路径"""
+        return self.config_file
 
 # 全局配置实例
 config_manager = ConfigManager()

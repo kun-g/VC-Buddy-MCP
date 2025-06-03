@@ -100,6 +100,11 @@ class ConfigManagerProxy(QObject):
     def save_config(self):
         """保存配置"""
         self._config_manager.save_config()
+    
+    @Slot(result=str)
+    def getConfigFilePath(self):
+        """获取配置文件路径"""
+        return self._config_manager.config_file_path
 
 
 class AnswerBoxBackend(QObject):
@@ -117,6 +122,7 @@ class AnswerBoxBackend(QObject):
     voiceErrorOccurred = Signal(str, arguments=['errorMessage'])
     voiceCommandDetected = Signal(str, str, arguments=['commandType', 'text'])
     voiceSettingsRequested = Signal('QVariant', arguments=['configManager'])  # 修复：使用QVariant而不是var
+    settingsRequested = Signal('QVariant', arguments=['configManager'])  # 新增：主设置对话框信号
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -580,6 +586,16 @@ class AnswerBoxBackend(QObject):
         except Exception as e:
             self.voiceErrorOccurred.emit(f"打开语音设置失败: {str(e)}")
     
+    @Slot()
+    def openSettings(self):
+        """打开主设置对话框"""
+        try:
+            config_proxy = ConfigManagerProxy(self._config_mgr, self)
+            self.settingsRequested.emit(config_proxy)
+            track_button_clicked("settings_opened")
+        except Exception as e:
+            self.voiceErrorOccurred.emit(f"打开设置失败: {str(e)}")
+
     @Slot('QVariant', 'QVariant')
     def onVoiceSettingsSaved(self, stopCommands, sendCommands):
         """处理语音设置保存事件"""

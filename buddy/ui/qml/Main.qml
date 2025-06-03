@@ -31,6 +31,16 @@ ApplicationWindow {
         }
     }
     
+    // Ctrl+, 打开设置快捷键
+    Shortcut {
+        sequence: "Ctrl+,"
+        onActivated: {
+            if (backend) {
+                backend.openSettings()
+            }
+        }
+    }
+    
     // 窗口位置（如果有保存的位置）
     Component.onCompleted: {
         if (backend && backend.hasValidSavedGeometry()) {
@@ -47,6 +57,7 @@ ApplicationWindow {
         // 连接语音设置信号
         if (backend) {
             backend.voiceSettingsRequested.connect(openVoiceSettingsDialog)
+            backend.settingsRequested.connect(openSettingsDialog)
         }
     }
     
@@ -61,6 +72,9 @@ ApplicationWindow {
     
     // 语音设置对话框
     property var voiceSettingsDialog: null
+    
+    // 主设置对话框
+    property var settingsDialog: null
     
     function openVoiceSettingsDialog(configManager) {
         if (!voiceSettingsDialog) {
@@ -83,6 +97,35 @@ ApplicationWindow {
             voiceSettingsDialog.loadSettings()
             voiceSettingsDialog.show()
         }
+    }
+    
+    function openSettingsDialog(configManager) {
+        if (!settingsDialog) {
+            var component = Qt.createComponent("SettingsDialog.qml")
+            if (component.status === Component.Ready) {
+                settingsDialog = component.createObject(window)
+                settingsDialog.settingsSaved.connect(function() {
+                    console.log("Settings saved successfully")
+                })
+            } else {
+                console.error("Failed to create SettingsDialog:", component.errorString())
+                console.log("Will try to open Qt Widgets settings dialog instead")
+                // 如果QML设置对话框创建失败，可以尝试调用Qt Widgets版本
+                openQtWidgetsSettingsDialog(configManager)
+                return
+            }
+        }
+        
+        if (settingsDialog) {
+            settingsDialog.configManager = configManager
+            settingsDialog.loadSettings()
+            settingsDialog.show()
+        }
+    }
+    
+    function openQtWidgetsSettingsDialog(configManager) {
+        // 暂时作为备用方案，如果需要的话可以通过Python后端调用Qt Widgets版本
+        console.log("Qt Widgets settings dialog is not yet implemented in QML context")
     }
     
     // 主布局
