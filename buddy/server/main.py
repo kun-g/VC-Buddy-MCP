@@ -58,7 +58,7 @@ def ask_for_feedback(
             stdin=subprocess.PIPE, 
             stderr=subprocess.PIPE,
             text=True,
-            bufsize=0  # 无缓冲，立即刷新
+            line_buffering=True  # 明确指定行缓冲
         ) as process:
             # 写入数据并关闭stdin
             input_json = json.dumps(input_data, ensure_ascii=False)
