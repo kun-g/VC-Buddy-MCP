@@ -360,9 +360,15 @@ class StreamingVoiceRecorder(QObject):
             audio_size = len(audio_buffer.getvalue())
             print(f"DEBUG: 音频缓冲区大小: {audio_size} 字节")
             
-            # 验证音频数据最小长度
+            # 验证音频数据最小长度和质量
             if audio_size < 1000:  # 少于1KB的音频数据可能无法转写
                 print("DEBUG: 音频数据太小，跳过转写")
+                return
+            
+            # 检查音频质量 - 计算音频能量
+            audio_data = audio_buffer.getvalue()
+            if self._is_audio_too_quiet(audio_data):
+                print("DEBUG: 音频太安静，可能是静音，跳过转写")
                 return
             
             # 给BytesIO对象设置名称，避免API调用问题
@@ -376,7 +382,9 @@ class StreamingVoiceRecorder(QObject):
                     model="whisper-1",
                     file=audio_buffer,
                     response_format="text",
-                    language="zh"  # 指定中文
+                    language="zh",  # 指定中文
+                    temperature=0.0,  # 降低随机性，减少幻觉
+                    prompt=""  # 空提示，避免引导生成特定内容
                 )
                 print(f"DEBUG: API调用成功，响应类型: {type(response)}")
                 print(f"DEBUG: API响应内容: {response}")
@@ -575,3 +583,39 @@ class StreamingVoiceRecorder(QObject):
     def _recording_active(self):
         """检查录音线程是否正在运行"""
         return hasattr(self, '_recording_active') and self._recording_active 
+
+    def _is_audio_too_quiet(self, audio_data: bytes) -> bool:
+        """检查音频是否太安静"""
+        import struct
+        
+        try:
+            # 跳过WAV头部（44字节）
+            if len(audio_data) < 44:
+                return True
+            
+            audio_samples = audio_data[44:]  # 跳过WAV头部
+            
+            # 将字节数据转换为16位整数数组
+            if len(audio_samples) < 2:
+                return True
+                
+            samples = struct.unpack(f'<{len(audio_samples)//2}h', audio_samples)
+            
+            # 计算平均绝对值（简单的能量指标）
+            avg_amplitude = sum(abs(sample) for sample in samples) / len(samples)
+            
+            # 设置阈值，低于此值认为是静音或太安静
+            silence_threshold = 200  # 可以根据实际情况调整
+            
+            is_quiet = avg_amplitude < silence_threshold
+            if is_quiet:
+                print(f"DEBUG: 音频能量太低: {avg_amplitude:.2f} < {silence_threshold}")
+            else:
+                print(f"DEBUG: 音频能量正常: {avg_amplitude:.2f}")
+                
+            return is_quiet
+            
+        except Exception as e:
+            print(f"DEBUG: 音频质量检测失败: {e}")
+            # 如果检测失败，不跳过转写
+            return False
