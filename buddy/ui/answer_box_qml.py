@@ -793,7 +793,11 @@ class AnswerBoxBackend(QObject):
     def trackShortcutUsed(self, shortcut_name: str, action: str):
         """统计快捷键使用"""
         try:
-            from ..core.analytics import track_shortcut_used
+            # 尝试相对导入，如果失败则尝试绝对导入
+            try:
+                from ..core.analytics import track_shortcut_used
+            except ImportError:
+                from buddy.core.analytics import track_shortcut_used
             track_shortcut_used(shortcut_name, action)
         except Exception as e:
             print(f"Failed to track shortcut usage: {e}", file=sys.stderr)
@@ -802,7 +806,11 @@ class AnswerBoxBackend(QObject):
     def trackConfigAction(self, action: str, config_type: str):
         """统计配置操作"""
         try:
-            from ..core.analytics import track_config_action
+            # 尝试相对导入，如果失败则尝试绝对导入
+            try:
+                from ..core.analytics import track_config_action
+            except ImportError:
+                from buddy.core.analytics import track_config_action
             track_config_action(action, config_type)
         except Exception as e:
             print(f"Failed to track config action: {e}", file=sys.stderr)

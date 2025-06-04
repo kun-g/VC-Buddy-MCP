@@ -26,6 +26,7 @@ make install 更智能一些，能根据系统安装额外的依赖
 测试一下没有
 
 # Failed to track shortcut usage: attempted relative import with no known parent package
+state=done
 
 # 需要一个make 命令，走 main.py 以便测试完整流程
 
