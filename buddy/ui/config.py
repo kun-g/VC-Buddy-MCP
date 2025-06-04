@@ -99,6 +99,13 @@ class ConfigManager:
             "openai": {
                 "api_key": "",
                 "api_url": "https://api.openai.com/v1"
+            },
+            "deepseek": {
+                "api_key": "",
+                "api_url": "https://api.deepseek.com",
+                "model": "deepseek-chat",
+                "temperature": 1.0,
+                "max_tokens": 8000
             }
         }
     
@@ -197,6 +204,61 @@ class ConfigManager:
     def config_file_path(self) -> str:
         """获取当前使用的配置文件路径"""
         return self.config_file
+
+    @property
+    def deepseek_api_key(self) -> str:
+        """获取DeepSeek API Key，优先使用配置文件，其次使用环境变量"""
+        config_key = self.get("deepseek.api_key", "")
+        if config_key:
+            return config_key
+        return os.getenv("DEEPSEEK_API_KEY", "")
+    
+    @property
+    def deepseek_api_url(self) -> str:
+        """获取DeepSeek API URL，优先使用配置文件，其次使用环境变量"""
+        config_url = self.get("deepseek.api_url", "")
+        if config_url:
+            return config_url
+        return os.getenv("DEEPSEEK_API_URL", "https://api.deepseek.com")
+    
+    @property
+    def deepseek_model(self) -> str:
+        """获取DeepSeek模型名称"""
+        return self.get("deepseek.model", "deepseek-chat")
+    
+    @property
+    def deepseek_temperature(self) -> float:
+        """获取DeepSeek温度参数"""
+        return self.get("deepseek.temperature", 1.0)
+    
+    @property
+    def deepseek_max_tokens(self) -> int:
+        """获取DeepSeek最大token数"""
+        return self.get("deepseek.max_tokens", 4000)
+    
+    def set_deepseek_api_key(self, api_key: str):
+        """设置DeepSeek API Key到配置文件"""
+        self.set("deepseek.api_key", api_key)
+    
+    def set_deepseek_api_url(self, api_url: str):
+        """设置DeepSeek API URL到配置文件"""
+        self.set("deepseek.api_url", api_url)
+    
+    def set_deepseek_model(self, model: str):
+        """设置DeepSeek模型名称"""
+        self.set("deepseek.model", model)
+    
+    def set_deepseek_temperature(self, temperature: float):
+        """设置DeepSeek温度参数"""
+        self.set("deepseek.temperature", temperature)
+    
+    def set_deepseek_max_tokens(self, max_tokens: int):
+        """设置DeepSeek最大token数"""
+        self.set("deepseek.max_tokens", max_tokens)
+    
+    def has_deepseek_api_key(self) -> bool:
+        """检查是否有可用的DeepSeek API Key"""
+        return bool(self.deepseek_api_key)
 
 # 全局配置实例
 config_manager = ConfigManager()

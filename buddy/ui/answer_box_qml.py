@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 
-from PySide6.QtCore import QObject, Signal, Slot, Property, QAbstractListModel, QModelIndex, Qt, QSettings
+from PySide6.QtCore import QObject, Signal, Slot, Property, QAbstractListModel, QModelIndex, Qt, QSettings, QTimer, QThread
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine, qmlRegisterType
 
@@ -26,6 +26,72 @@ except ImportError:
     from ui.voice_recorder import VoiceRecorder
     from ui.streaming_voice_recorder import StreamingVoiceRecorder
     from core.analytics import get_analytics_manager, track_app_opened, track_button_clicked, track_todo_action, track_voice_action
+
+
+class DeepSeekSummaryWorker(QThread):
+    """DeepSeek总结工作线程"""
+    
+    # 信号定义
+    summaryCompleted = Signal(str)  # 总结完成信号
+    summaryError = Signal(str)      # 总结错误信号
+    
+    def __init__(self, content, project_directory, parent=None):
+        super().__init__(parent)
+        self.content = content
+        self.project_directory = project_directory
+    
+    def run(self):
+        """在子线程中执行DeepSeek总结"""
+        try:
+            # 导入DeepSeek客户端
+            try:
+                from ..core.deepseek_client import DeepSeekClient
+                from .config import ConfigManager
+            except ImportError:
+                import sys
+                from pathlib import Path
+                sys.path.insert(0, str(Path(__file__).parent.parent))
+                from core.deepseek_client import DeepSeekClient
+                from ui.config import ConfigManager
+            
+            # 获取配置
+            config = ConfigManager(project_directory=self.project_directory)
+            
+            if not config.has_deepseek_api_key():
+                error_msg = "DeepSeek API密钥未配置，请先配置API密钥"
+                self.summaryError.emit(error_msg)
+                return
+            
+            # 创建DeepSeek客户端
+            client = DeepSeekClient(
+                api_key=config.deepseek_api_key,
+                base_url=config.deepseek_api_url
+            )
+            
+            # 系统提示词
+            system_prompt = """你是一个专业的内容总结助手。请对用户提供的内容进行简洁、准确的总结。
+总结要求：
+1. 提取核心要点
+2. 保持逻辑清晰
+3. 语言简洁明了
+4. 突出重要信息
+请用中文回复。"""
+            
+            # 调用DeepSeek处理
+            response = client.simple_chat(
+                user_input=f"请总结以下内容：\n\n{self.content}",
+                system_prompt=system_prompt,
+                model=config.deepseek_model,
+                temperature=config.deepseek_temperature
+            )
+            
+            # 发送完成信号
+            self.summaryCompleted.emit(response)
+            
+        except Exception as e:
+            error_msg = f"DeepSeek处理失败: {str(e)}"
+            print(error_msg, file=sys.stderr)
+            self.summaryError.emit(error_msg)
 
 
 class TodoListModel(QAbstractListModel):
@@ -123,6 +189,9 @@ class AnswerBoxBackend(QObject):
     voiceCommandDetected = Signal(str, str, arguments=['commandType', 'text'])
     voiceSettingsRequested = Signal('QVariant', arguments=['configManager'])  # 修复：使用QVariant而不是var
     settingsRequested = Signal('QVariant', arguments=['configManager'])  # 新增：主设置对话框信号
+    deepseekSummaryReady = Signal(str, arguments=['summary'])  # 新增：DeepSeek总结完成信号
+    deepseekSummaryStateChanged = Signal(bool, arguments=['isSummarizing'])  # 新增：DeepSeek总结状态信号
+    deepseekSummaryError = Signal(str, arguments=['errorMessage'])  # 新增：DeepSeek总结错误信号
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -131,19 +200,48 @@ class AnswerBoxBackend(QObject):
         self._summary_text = "等待数据输入..."
         self._project_directory = None
         self._is_transcribing = False  # 新增：转写状态标志
+        self._is_summarizing = False  # 新增：总结状态标志
         
         # 尝试读取输入数据（非阻塞）
         data = None
+        input_data = ""
         try:
             # 检查是否有标准输入数据
             if not sys.stdin.isatty():  # 如果有管道输入
-                input_data = sys.stdin.read().strip()
+                # 尝试多种方式读取UTF-8编码的输入
+                try:
+                    if hasattr(sys.stdin, 'buffer'):
+                        # 方法1：使用buffer以UTF-8编码读取
+                        input_bytes = sys.stdin.buffer.read()
+                        input_data = input_bytes.decode('utf-8').strip()
+                    else:
+                        # 方法2：直接读取
+                        input_data = sys.stdin.read().strip()
+                except UnicodeDecodeError:
+                    # 方法3：尝试其他编码
+                    try:
+                        if hasattr(sys.stdin, 'buffer'):
+                            input_bytes = sys.stdin.buffer.read()
+                            # 尝试GBK编码（Windows中文系统）
+                            input_data = input_bytes.decode('gbk').strip()
+                        else:
+                            input_data = sys.stdin.read().strip()
+                    except UnicodeDecodeError:
+                        # 方法4：忽略错误字符
+                        if hasattr(sys.stdin, 'buffer'):
+                            input_bytes = sys.stdin.buffer.read()
+                            input_data = input_bytes.decode('utf-8', errors='ignore').strip()
+                        else:
+                            input_data = sys.stdin.read().strip()
+                
                 if input_data:
                     data = json.loads(input_data)
+                    print(f"DEBUG: 成功读取输入数据: {len(input_data)} 字符", file=sys.stderr)
                 else:
                     print("DEBUG: 标准输入为空", file=sys.stderr)
         except json.JSONDecodeError as e:
             print(f"DEBUG: JSON解析错误: {e}", file=sys.stderr)
+            print(f"DEBUG: 原始输入数据: {input_data[:100]}...", file=sys.stderr)
         except Exception as e:
             print(f"DEBUG: 读取输入时出错: {e}", file=sys.stderr)
         
@@ -191,6 +289,9 @@ class AnswerBoxBackend(QObject):
         # 初始化传统录音器作为主要录音器
         self._voice_recorder = VoiceRecorder(config_manager=self._config_mgr)
         self._is_recording = False
+        
+        # DeepSeek总结工作线程引用
+        self._deepseek_worker = None
         
         # 连接传统录音器信号
         self._voice_recorder.recording_started.connect(self._on_recording_started)
@@ -296,8 +397,13 @@ class AnswerBoxBackend(QObject):
     
     @Property(bool, notify=voiceTranscriptionStateChanged)
     def isTranscribing(self):
-        """转写状态属性"""
+        """获取转写状态"""
         return self._is_transcribing
+    
+    @Property(bool, notify=deepseekSummaryStateChanged)
+    def isSummarizing(self):
+        """获取DeepSeek总结状态"""
+        return self._is_summarizing
     
     # 录音相关的槽函数
     @Slot()
@@ -340,6 +446,7 @@ class AnswerBoxBackend(QObject):
     def _on_final_transcription_ready(self, transcription: str):
         """处理最终转写结果"""
         if transcription.strip():
+            # 直接发送原始转写结果，不再自动调用DeepSeek
             self.voiceTranscriptionReady.emit(transcription)
     
     def _on_streaming_voice_error(self, error_message: str):
@@ -380,6 +487,7 @@ class AnswerBoxBackend(QObject):
         self.voiceTranscriptionStateChanged.emit(False)
         
         if transcription.strip():
+            # 直接发送原始转写结果，不再自动调用DeepSeek
             self.voiceTranscriptionReady.emit(transcription)
     
     def _on_voice_error(self, error_message: str):
@@ -535,16 +643,101 @@ class AnswerBoxBackend(QObject):
                 "result": feedback_text
             }
             
-            # 输出到标准输出
+            # 输出到标准输出，确保使用UTF-8编码
             output = json.dumps(response, ensure_ascii=False)
-            sys.stdout.write(output)
-            sys.stdout.flush()
             
-            # 延迟退出，确保输出完成
+            # 只输出JSON结果到stdout，所有调试信息都发送到stderr
+            try:
+                # 方法1：直接使用UTF-8编码写入
+                print(output, flush=True)
+            except UnicodeEncodeError:
+                # 方法2：如果print失败，使用buffer方式
+                if hasattr(sys.stdout, 'buffer'):
+                    sys.stdout.buffer.write(output.encode('utf-8'))
+                    sys.stdout.buffer.write(b'\n')
+                    sys.stdout.buffer.flush()
+                else:
+                    # 方法3：最后的后备方案，使用ASCII安全输出
+                    ascii_output = json.dumps(response, ensure_ascii=True)
+                    sys.stdout.write(ascii_output)
+                    sys.stdout.write('\n')
+                    sys.stdout.flush()
+            
+            # 立即退出，避免额外输出
             QGuiApplication.instance().quit()
             
         except Exception as e:
+            print(f"发送响应时出错: {str(e)}", file=sys.stderr)
             QGuiApplication.instance().quit()
+    
+    @Slot(str, result=str)
+    def summarizeWithDeepSeek(self, content: str) -> str:
+        """使用DeepSeek总结文本内容 - 异步版本"""
+        if self._is_summarizing:
+            return content  # 如果正在总结中，直接返回原内容
+        
+        # 启动异步总结
+        self.startDeepSeekSummary(content)
+        return content  # 立即返回原内容，避免阻塞UI
+    
+    @Slot(str)
+    def startDeepSeekSummary(self, content: str):
+        """开始DeepSeek总结任务"""
+        if self._is_summarizing:
+            return  # 如果正在总结中，忽略新请求
+        
+        self._is_summarizing = True
+        self.deepseekSummaryStateChanged.emit(True)
+        
+        # 保存原始内容
+        self._pending_summary_content = content
+        
+        # 使用QTimer延迟执行，避免阻塞UI
+        QTimer.singleShot(50, self._performDeepSeekSummary)
+    
+    def _performDeepSeekSummary(self):
+        """执行DeepSeek总结的实际工作"""
+        try:
+            content = self._pending_summary_content
+            
+            # 如果有旧的worker线程，先清理
+            if self._deepseek_worker is not None:
+                self._deepseek_worker.wait()  # 等待旧线程完成
+                self._deepseek_worker.deleteLater()
+            
+            # 创建DeepSeekSummaryWorker实例
+            self._deepseek_worker = DeepSeekSummaryWorker(content, self._project_directory, self)
+            
+            # 连接信号
+            self._deepseek_worker.summaryCompleted.connect(self._on_summary_completed)
+            self._deepseek_worker.summaryError.connect(self._on_summary_error)
+            
+            # 当线程完成时自动清理
+            self._deepseek_worker.finished.connect(self._deepseek_worker.deleteLater)
+            
+            # 启动线程
+            self._deepseek_worker.start()
+            
+        except Exception as e:
+            error_msg = f"DeepSeek总结失败: {str(e)}"
+            print(error_msg, file=sys.stderr)
+            
+            # 更新状态并发送错误
+            self._is_summarizing = False
+            self.deepseekSummaryStateChanged.emit(False)
+            self.deepseekSummaryError.emit(error_msg)
+    
+    def _on_summary_completed(self, summary: str):
+        """处理DeepSeek总结完成"""
+        self._is_summarizing = False
+        self.deepseekSummaryStateChanged.emit(False)
+        self.deepseekSummaryReady.emit(summary)
+    
+    def _on_summary_error(self, error_message: str):
+        """处理DeepSeek总结错误"""
+        self._is_summarizing = False
+        self.deepseekSummaryStateChanged.emit(False)
+        self.deepseekSummaryError.emit(error_message)
     
     @Slot(int, int, int, int)
     def saveWindowGeometry(self, x: int, y: int, width: int, height: int):
