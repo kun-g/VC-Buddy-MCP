@@ -185,6 +185,7 @@ class AnswerBoxBackend(QObject):
     voiceCommandDetected = Signal(str, str, arguments=['commandType', 'text'])
     voiceSettingsRequested = Signal('QVariant', arguments=['configManager'])  # 修复：使用QVariant而不是var
     settingsRequested = Signal('QVariant', arguments=['configManager'])  # 新增：主设置对话框信号
+    apiKeyMissingWarning = Signal()  # 新增：API Key缺失警告信号
     deepseekSummaryReady = Signal(str, arguments=['summary'])  # 新增：DeepSeek总结完成信号
     deepseekSummaryStateChanged = Signal(bool, arguments=['isSummarizing'])  # 新增：DeepSeek总结状态信号
     deepseekSummaryError = Signal(str, arguments=['errorMessage'])  # 新增：DeepSeek总结错误信号
@@ -396,6 +397,12 @@ class AnswerBoxBackend(QObject):
         """获取转写状态"""
         return self._is_transcribing
     
+    @Slot(result=bool)
+    def hasApiKey(self):
+        """检查是否配置了API Key"""
+        api_key = self._config_mgr.get("openai.api_key", "")
+        return bool(api_key and api_key.strip())
+    
     @Property(bool, notify=deepseekSummaryStateChanged)
     def isSummarizing(self):
         """获取DeepSeek总结状态"""
@@ -410,6 +417,11 @@ class AnswerBoxBackend(QObject):
                 self._voice_recorder.stop_recording()
                 track_button_clicked("voice_stop_traditional")
             else:
+                # 开始录音前检查API Key
+                if not self.hasApiKey():
+                    self.apiKeyMissingWarning.emit()
+                    return
+                
                 self._voice_recorder.start_recording()
                 track_button_clicked("voice_start_traditional")
         except Exception as e:

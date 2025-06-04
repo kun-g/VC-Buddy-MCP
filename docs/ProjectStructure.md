@@ -14,10 +14,10 @@ VC-Buddy-MCP/
 │   ├── cli.py                      # CLI 命令行工具 ⭐ 新增，支持项目环境设置和cursor rules配置
 │   ├── ui/                         # PySide6 GUI
 │   │   ├── answer_box.py          # Answer Box 传统界面 ⭐ 已优化，集成数据统计
-│   │   ├── answer_box_qml.py      # Answer Box QML版本 ⭐ 已升级，支持流式语音输入和QML语音设置，新增Ctrl+,快捷键设置功能，增强埋点统计，优化TODO双击功能支持插入完整任务树
+│   │   ├── answer_box_qml.py      # Answer Box QML版本 ⭐ 已升级，支持流式语音输入和QML语音设置，新增Ctrl+,快捷键设置功能，增强埋点统计，优化TODO双击功能支持插入完整任务树，新增API Key检查和警告功能
 │   │   ├── style_manager.py       # 样式管理器 ⭐ 新增
 │   │   ├── qml/                   # QML 界面文件 ⭐ 新增
-│   │   │   ├── Main.qml           # 主界面 QML ⭐ 支持流式语音输入显示，新增Ctrl+,快捷键，集成快捷键使用统计，新增可调整高度的summary区域
+│   │   │   ├── Main.qml           # 主界面 QML ⭐ 支持流式语音输入显示，新增Ctrl+,快捷键，集成快捷键使用统计，新增可调整高度的summary区域，新增API Key警告对话框
 │   │   │   ├── TodoItemDelegate.qml # TODO 项目组件 ⭐ 使用主题系统
 │   │   │   ├── VoiceSettingsDialog.qml # QML语音设置对话框 ⭐ 新增，替代Qt Widgets版本
 │   │   │   ├── SettingsDialog.qml # QML主设置对话框 ⭐ 新增，支持OpenAI API配置，支持Ctrl+,快捷键调用，集成配置操作统计

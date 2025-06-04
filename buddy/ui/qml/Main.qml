@@ -677,6 +677,11 @@ ApplicationWindow {
             // 可以在这里添加错误提示UI
         }
         
+        function onApiKeyMissingWarning() {
+            // 显示API Key缺失警告对话框
+            apiKeyWarningDialog.open()
+        }
+        
         function onDeepseekSummaryReady(summary) {
             // DeepSeek总结完成，更新输入框内容
             console.log("DeepSeek总结完成:", summary.length, "字符")
@@ -734,6 +739,98 @@ ApplicationWindow {
         onTriggered: {
             if (backend) {
                 backend.saveWindowGeometry(window.x, window.y, window.width, window.height)
+            }
+        }
+    }
+    
+    // API Key 缺失警告对话框
+    Dialog {
+        id: apiKeyWarningDialog
+        title: "⚠️ 需要配置 API Key"
+        modal: true
+        anchors.centerIn: parent
+        width: Math.min(400, parent.width * 0.8)
+        height: Math.min(200, parent.height * 0.6)
+        
+        background: Rectangle {
+            color: Theme.colors.background
+            border.color: Theme.colors.border
+            border.width: 1
+            radius: Theme.radius.medium
+        }
+        
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: Theme.spacing.normal
+            spacing: Theme.spacing.normal
+            
+            Text {
+                Layout.fillWidth: true
+                text: "语音功能需要配置 OpenAI API Key 才能使用。\n\n请按 Ctrl+, 打开设置窗口配置 API Key。"
+                wrapMode: Text.WordWrap
+                font.pixelSize: Theme.fonts.normal
+                font.family: Theme.fonts.family
+                color: Theme.colors.text
+                horizontalAlignment: Text.AlignHCenter
+            }
+            
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignCenter
+                spacing: Theme.spacing.normal
+                
+                Button {
+                    text: "📝 打开设置"
+                    font.pixelSize: Theme.fonts.normal
+                    font.family: Theme.fonts.family
+                    
+                    background: Rectangle {
+                        color: parent.pressed ? Theme.colors.primaryDark : 
+                               parent.hovered ? Theme.colors.primaryDark : Theme.colors.primary
+                        radius: Theme.radius.normal
+                    }
+                    
+                    contentItem: Text {
+                        text: parent.text
+                        font: parent.font
+                        color: Theme.colors.textOnPrimary
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    
+                    onClicked: {
+                        apiKeyWarningDialog.close()
+                        if (backend) {
+                            backend.openSettings()
+                        }
+                    }
+                }
+                
+                Button {
+                    text: "取消"
+                    font.pixelSize: Theme.fonts.normal
+                    font.family: Theme.fonts.family
+                    
+                    background: Rectangle {
+                        color: parent.pressed ? "#e9ecef" : 
+                               parent.hovered ? "#f8f9fa" : "#ffffff"
+                        border.color: Theme.colors.border
+                        border.width: 1
+                        radius: Theme.radius.normal
+                    }
+                    
+                    contentItem: Text {
+                        text: parent.text
+                        font: parent.font
+                        color: Theme.colors.text
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    
+                    onClicked: {
+                        apiKeyWarningDialog.close()
+                    }
+                }
             }
         }
     }
