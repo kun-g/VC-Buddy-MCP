@@ -1,21 +1,3 @@
-# TODO展示
-
-## 简化 TODO 列表
-state=done
-
-TODO 列表只展示标题就可以，属性和详情不用展示在列表里
-
-# 分析统计功能
-
-## 平台信息收集和分析
-state=done
-
-实现了完整的平台信息收集，包括：
-- 操作系统信息（macOS/Windows/Linux）
-- 架构信息（x64/ARM64/Apple Silicon）  
-- Python版本信息
-- 系统语言和地区设置
-
 # 文档维护
 
 ## 根据已完成任务更新文档
@@ -43,8 +25,15 @@ make install 更智能一些，能根据系统安装额外的依赖
 就在当前目录设置cursor rule
 测试一下没有
 
-# 处理LLM 传入参数不合规范的情况
-处理LLM 传入参数不合规范的情况:
-1. 缺project_directory
-2. 缺 summary
-3. 不是 JSON
+# Failed to track shortcut usage: attempted relative import with no known parent package
+
+# 需要一个make 命令，走 main.py 以便测试完整流程
+
+# TODO 完成状态的✅可以去掉了，那个绿色小点够清晰的
+# TODO 双击时，如果有子任务，就把整个任务记录都贴到输入框（包括总任务）
+
+# 输入框优化
+## 输入框可以粘贴图片
+## 输入框可以调高度
+
+# 得搞个异常捕捉上报机制才行
