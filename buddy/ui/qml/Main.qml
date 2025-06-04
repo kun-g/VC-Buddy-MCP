@@ -378,6 +378,7 @@ ApplicationWindow {
                         Button {
                             id: voiceButton
                             Layout.fillWidth: true
+                            Layout.preferredHeight: 44  // 增加按钮高度
                             text: {
                                 if (backend && backend.isRecording) {
                                     return "⏹️ 停止录音 (Ctrl+R)"
@@ -429,6 +430,104 @@ ApplicationWindow {
                             }
                         }
                         
+                        // DeepSeek总结按钮
+                        Button {
+                            id: deepseekButton
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 44  // 增加按钮高度
+                            text: backend && backend.isSummarizing ? "🤖 总结中..." : "🤖 DeepSeek总结"
+                            font.pixelSize: Theme.fonts.normal
+                            font.family: Theme.fonts.family
+                            enabled: backend && inputArea.text.trim().length > 0 && !backend.isRecording && !backend.isSummarizing  // 有内容且不在录音和总结时才启用
+                            
+                            background: Rectangle {
+                                color: deepseekButton.pressed ? "#5e35b1" : 
+                                       deepseekButton.hovered ? "#7e57c2" : "#9c27b0"
+                                border.color: "#7b1fa2"
+                                border.width: 1
+                                radius: Theme.radius.normal
+                                opacity: deepseekButton.enabled ? 1.0 : 0.5
+                                
+                                Behavior on color {
+                                    ColorAnimation {
+                                        duration: Theme.animation.fast
+                                        easing.type: Easing.OutQuad
+                                    }
+                                }
+                                
+                                Behavior on opacity {
+                                    NumberAnimation {
+                                        duration: Theme.animation.fast
+                                        easing.type: Easing.OutQuad
+                                    }
+                                }
+                            }
+                            
+                            contentItem: Item {
+                                anchors.fill: parent
+                                
+                                Text {
+                                    id: buttonText
+                                    text: deepseekButton.text
+                                    font: deepseekButton.font
+                                    opacity: enabled ? 1.0 : 0.5
+                                    color: Theme.colors.textOnPrimary
+                                    anchors.centerIn: parent
+                                    anchors.horizontalCenterOffset: (loadingIndicator.visible ? -10 : 0)
+                                    elide: Text.ElideRight
+                                    
+                                    Behavior on anchors.horizontalCenterOffset {
+                                        NumberAnimation {
+                                            duration: Theme.animation.fast
+                                            easing.type: Easing.OutQuad
+                                        }
+                                    }
+                                }
+                                
+                                // 加载动画指示器
+                                Rectangle {
+                                    id: loadingIndicator
+                                    width: 16
+                                    height: 16
+                                    radius: 8
+                                    color: "transparent"
+                                    border.color: Theme.colors.textOnPrimary
+                                    border.width: 2
+                                    visible: backend && backend.isSummarizing
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    anchors.left: buttonText.right
+                                    anchors.leftMargin: 6
+                                    
+                                    Rectangle {
+                                        width: 4
+                                        height: 4
+                                        radius: 2
+                                        color: Theme.colors.textOnPrimary
+                                        anchors.centerIn: parent
+                                        
+                                        SequentialAnimation on rotation {
+                                            running: parent.visible
+                                            loops: Animation.Infinite
+                                            NumberAnimation { from: 0; to: 360; duration: 1000 }
+                                        }
+                                        
+                                        SequentialAnimation on opacity {
+                                            running: parent.visible
+                                            loops: Animation.Infinite
+                                            NumberAnimation { from: 0.3; to: 1.0; duration: 500 }
+                                            NumberAnimation { from: 1.0; to: 0.3; duration: 500 }
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            onClicked: {
+                                if (backend && inputArea.text.trim().length > 0 && !backend.isSummarizing) {
+                                    backend.startDeepSeekSummary(inputArea.text)
+                                }
+                            }
+                        }
+                        
                         // 语音设置按钮
                         Button {
                             id: voiceSettingsButton
@@ -474,6 +573,7 @@ ApplicationWindow {
                         Button {
                             id: sendButton
                             Layout.fillWidth: true
+                            Layout.preferredHeight: 48  // Send按钮稍微高一些，作为主要操作按钮
                             text: "📤 Send (Ctrl+E)"
                             font.bold: true
                             font.pixelSize: Theme.fonts.normal
@@ -568,6 +668,22 @@ ApplicationWindow {
         function onVoiceErrorOccurred(errorMessage) {
             console.log("语音错误:", errorMessage)
             // 可以在这里添加错误提示UI
+        }
+        
+        function onDeepseekSummaryReady(summary) {
+            // DeepSeek总结完成，更新输入框内容
+            console.log("DeepSeek总结完成:", summary.length, "字符")
+            inputArea.text = summary
+            inputArea.forceActiveFocus()
+            // 将光标移动到总结内容的末尾
+            inputArea.cursorPosition = inputArea.length
+        }
+        
+        function onDeepseekSummaryError(errorMessage) {
+            // DeepSeek总结出错，显示错误信息
+            console.log("DeepSeek总结错误:", errorMessage)
+            // 可以在这里添加错误提示UI，比如短暂显示错误消息
+            // 暂时在控制台显示错误
         }
     }
     
