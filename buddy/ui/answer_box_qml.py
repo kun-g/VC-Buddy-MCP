@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 
-from PySide6.QtCore import QObject, Signal, Slot, Property, QAbstractListModel, QModelIndex, Qt, QSettings, QTimer, QThread
+from PySide6.QtCore import QObject, Signal, Slot, Property, QAbstractListModel, QModelIndex, Qt, QSettings, QTimer, QThread, QTimer, QThread
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine, qmlRegisterType
 
@@ -186,6 +186,8 @@ class AnswerBoxBackend(QObject):
     voiceSettingsRequested = Signal('QVariant', arguments=['configManager'])  # 修复：使用QVariant而不是var
     settingsRequested = Signal('QVariant', arguments=['configManager'])  # 新增：主设置对话框信号
     apiKeyMissingWarning = Signal()  # 新增：API Key缺失警告信号
+    apiTestStarted = Signal()  # 新增：API测试开始信号
+    apiTestFinished = Signal(str, str, arguments=['status', 'message'])  # 新增：API测试完成信号
     deepseekSummaryReady = Signal(str, arguments=['summary'])  # 新增：DeepSeek总结完成信号
     deepseekSummaryStateChanged = Signal(bool, arguments=['isSummarizing'])  # 新增：DeepSeek总结状态信号
     deepseekSummaryError = Signal(str, arguments=['errorMessage'])  # 新增：DeepSeek总结错误信号
@@ -197,6 +199,7 @@ class AnswerBoxBackend(QObject):
         self._summary_text = "等待数据输入..."
         self._project_directory = None
         self._is_transcribing = False  # 新增：转写状态标志
+        self._api_test_callback = None  # 存储API测试回调
         self._is_summarizing = False  # 新增：总结状态标志
         
         # 尝试读取输入数据（非阻塞）
@@ -310,6 +313,9 @@ class AnswerBoxBackend(QObject):
         
         # 初始化统计管理器
         self._analytics = get_analytics_manager()
+        
+        # 连接API测试信号
+        self.apiTestFinished.connect(self._on_api_test_finished)
         
         # 统计应用打开
         if self._project_directory:
@@ -840,6 +846,109 @@ class AnswerBoxBackend(QObject):
             track_button_clicked("voice_settings_saved")
         except Exception as e:
             self.voiceErrorOccurred.emit(f"保存语音设置失败: {str(e)}")
+
+    @Slot(str, str, 'QVariant')
+    def testApiConnection(self, api_key: str, api_url: str, callback):
+        """测试API连接（使用QThread异步处理）"""
+        from PySide6.QtCore import QThread, QObject
+        
+        # 存储回调
+        self._api_test_callback = callback
+        
+        # 发送测试开始信号
+        self.apiTestStarted.emit()
+        
+        class ApiTestWorker(QObject):
+            finished = Signal(str, str)  # status, message
+            
+            def __init__(self, api_key, api_url):
+                super().__init__()
+                self.api_key = api_key
+                self.api_url = api_url
+            
+            def run(self):
+                try:
+                    import openai
+                    
+                    # 验证URL格式
+                    if not self.api_url.startswith(('http://', 'https://')):
+                        self.finished.emit("error", "API URL 必须以 http:// 或 https:// 开头")
+                        return
+                    
+                    # 根据URL创建客户端
+                    try:
+                        if self.api_url == "https://api.openai.com/v1":
+                            client = openai.OpenAI(api_key=self.api_key)
+                        else:
+                            # 确保URL格式正确
+                            test_url = self.api_url
+                            if not test_url.endswith('/v1'):
+                                if not test_url.endswith('/'):
+                                    test_url += '/v1'
+                                else:
+                                    test_url += 'v1'
+                            client = openai.OpenAI(api_key=self.api_key, base_url=test_url)
+                    except Exception as client_error:
+                        self.finished.emit("error", f"创建客户端失败: {str(client_error)}")
+                        return
+                    
+                    # 简单的测试请求
+                    try:
+                        response = client.models.list()
+                        model_count = len(response.data) if hasattr(response, 'data') else 0
+                    except Exception as api_error:
+                        # 如果模型列表失败，尝试其他简单请求
+                        try:
+                            # 尝试一个更简单的请求
+                            client.completions.create(
+                                model="gpt-3.5-turbo-instruct",
+                                prompt="test",
+                                max_tokens=1
+                            )
+                            model_count = "未知"
+                        except:
+                            # 分析具体错误类型
+                            error_msg = str(api_error)
+                            if "Incorrect API key" in error_msg or "invalid_api_key" in error_msg:
+                                self.finished.emit("error", "API Key 无效，请检查后重试。")
+                            elif "quota" in error_msg.lower() or "rate_limit" in error_msg.lower():
+                                self.finished.emit("warning", "API Key 有效，但配额不足或请求频率过高。")
+                            elif "Connection" in error_msg or "timeout" in error_msg.lower() or "网络" in error_msg:
+                                self.finished.emit("error", f"网络连接失败，请检查：\n1. API URL 是否正确: {self.api_url}\n2. 网络连接是否正常\n3. 防火墙或代理设置\n\n错误详情：{error_msg}")
+                            else:
+                                self.finished.emit("error", f"连接失败：{error_msg}\n\n请检查API配置是否正确。")
+                            return
+                    
+                    # 测试成功
+                    self.finished.emit("success", f"API 连接成功！\nAPI URL: {self.api_url}\n可用模型: {model_count} 个")
+                    
+                except Exception as e:
+                    self.finished.emit("error", f"测试时发生未知错误：{str(e)}")
+        
+        # 创建工作线程
+        self._api_test_thread = QThread()
+        self._api_test_worker = ApiTestWorker(api_key, api_url)
+        self._api_test_worker.moveToThread(self._api_test_thread)
+        
+        # 连接信号
+        self._api_test_thread.started.connect(self._api_test_worker.run)
+        self._api_test_worker.finished.connect(self.apiTestFinished.emit)
+        self._api_test_worker.finished.connect(self._api_test_thread.quit)
+        self._api_test_worker.finished.connect(self._api_test_worker.deleteLater)
+        self._api_test_thread.finished.connect(self._api_test_thread.deleteLater)
+        
+        # 启动线程
+        self._api_test_thread.start()
+    
+    @Slot(str, str)
+    def _on_api_test_finished(self, status: str, message: str):
+        """处理API测试完成事件"""
+        try:
+            if self._api_test_callback:
+                self._api_test_callback.call(status, message)
+                self._api_test_callback = None  # 清除回调
+        except Exception as e:
+            print(f"Failed to handle API test finished: {e}", file=sys.stderr)
 
 class AnswerBoxQML:
     """QML版本的AnswerBox应用"""

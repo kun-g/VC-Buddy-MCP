@@ -20,7 +20,7 @@ VC-Buddy-MCP/
 │   │   │   ├── Main.qml           # 主界面 QML ⭐ 支持流式语音输入显示，新增Ctrl+,快捷键，集成快捷键使用统计，新增可调整高度的summary区域，新增API Key警告对话框
 │   │   │   ├── TodoItemDelegate.qml # TODO 项目组件 ⭐ 使用主题系统
 │   │   │   ├── VoiceSettingsDialog.qml # QML语音设置对话框 ⭐ 新增，替代Qt Widgets版本
-│   │   │   ├── SettingsDialog.qml # QML主设置对话框 ⭐ 新增，支持OpenAI API配置，支持Ctrl+,快捷键调用，集成配置操作统计
+│   │   │   ├── SettingsDialog.qml # QML主设置对话框 ⭐ 新增，支持OpenAI API配置，支持Ctrl+,快捷键调用，集成配置操作统计，实现真实API连接测试
 │   │   │   ├── Theme.qml          # QML 主题定义 ⭐ 新增
 │   │   │   ├── styles.qss         # QSS 样式文件 ⭐ 移动到qml目录
 │   │   │   └── qmldir             # QML 模块配置 ⭐ 已更新
@@ -36,7 +36,6 @@ VC-Buddy-MCP/
 │       └── test_analytics_platform.py # 平台统计功能测试 ⭐ 新增，验证平台信息收集和事件跟踪
 ├── tools/                          # 工具目录 ⭐ 新增
 │   ├── voice_test_unified.py      # 统一语音测试工具 ⭐ 新增，合并传统和流式测试功能
-│   ├── settings_dialog.py         # 设置对话框 ⭐ 新增，支持API Key和API URL配置
 │   └── README_VOICE_RECORDER.md   # 语音录制器使用说明 ⭐ 新增
 ├── scripts/                        # 安装脚本目录 ⭐ 新增
 │   └── install.py                 # 智能安装脚本 ⭐ 新增，支持跨平台依赖检测和安装

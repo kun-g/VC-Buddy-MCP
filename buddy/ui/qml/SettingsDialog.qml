@@ -90,6 +90,11 @@ Window {
             return
         }
         
+        var apiUrl = apiUrlInput.text.trim()
+        if (!apiUrl) {
+            apiUrl = "https://api.openai.com/v1"  // 使用默认URL
+        }
+        
         // 统计测试连接操作
         try {
             if (typeof backend !== 'undefined' && backend && backend.trackConfigAction) {
@@ -103,8 +108,35 @@ Window {
         testButton.enabled = false
         testButton.text = "测试中..."
         
-        // 模拟测试（在实际应用中应该调用后端API测试）
-        testTimer.start()
+        // 创建回调对象来接收测试结果
+        var callback = Qt.createQmlObject('
+            import QtQuick 2.15
+            QtObject {
+                function call(status, message) {
+                    if (status === "success") {
+                        showMessage("测试成功", message, true)
+                    } else if (status === "warning") {
+                        showMessage("测试警告", message, false)
+                    } else {
+                        showMessage("测试失败", message, false)
+                    }
+                    isTestingConnection = false
+                    testButton.enabled = true
+                    testButton.text = "测试连接"
+                }
+            }
+        ', settingsWindow)
+        
+        // 调用后端的真实API测试方法
+        if (typeof backend !== 'undefined' && backend && backend.testApiConnection) {
+            backend.testApiConnection(apiKey, apiUrl, callback)
+        } else {
+            // 如果后端不可用，显示错误
+            showMessage("测试失败", "后端API测试方法不可用", false)
+            isTestingConnection = false
+            testButton.enabled = true
+            testButton.text = "测试连接"
+        }
     }
     
     function updateStatusDisplay() {
@@ -125,24 +157,6 @@ Window {
         messageDialog.text = message
         messageDialog.isSuccess = isSuccess
         messageDialog.open()
-    }
-    
-    // 测试连接定时器（模拟异步操作）
-    Timer {
-        id: testTimer
-        interval: 2000
-        onTriggered: {
-            isTestingConnection = false
-            testButton.enabled = true
-            testButton.text = "测试连接"
-            
-            var apiKey = apiKeyInput.text.trim()
-            if (apiKey.length > 20) {
-                showMessage("测试成功", "API Key 验证通过！", true)
-            } else {
-                showMessage("测试失败", "API Key 格式不正确", false)
-            }
-        }
     }
     
     function getConfigPath() {
@@ -234,21 +248,22 @@ Window {
                             }
                             
                             Button {
+                                id: showHideButton
                                 text: apiKeyVisible ? "🙈 隐藏" : "👁️ 显示"
                                 implicitWidth: 80
                                 font.pixelSize: Theme.fonts.small
                                 font.family: Theme.fonts.family
                                 
                                 background: Rectangle {
-                                    color: parent.pressed ? "#e9ecef" : parent.hovered ? "#f8f9fa" : "#ffffff"
+                                    color: showHideButton.pressed ? "#e9ecef" : showHideButton.hovered ? "#f8f9fa" : "#ffffff"
                                     border.color: "#dee2e6"
                                     border.width: 1
                                     radius: Theme.radius.normal
                                 }
                                 
                                 contentItem: Text {
-                                    text: parent.text
-                                    font: parent.font
+                                    text: showHideButton.text
+                                    font: showHideButton.font
                                     color: "#495057"
                                     horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment: Text.AlignVCenter
@@ -432,7 +447,7 @@ Window {
                     font.family: Theme.fonts.family
                     
                     background: Rectangle {
-                        color: parent.pressed ? "#0056b3" : parent.hovered ? "#007bff" : "#17a2b8"
+                        color: testButton.pressed ? "#0056b3" : testButton.hovered ? "#007bff" : "#17a2b8"
                         radius: Theme.radius.normal
                         
                         Behavior on color {
@@ -444,8 +459,8 @@ Window {
                     }
                     
                     contentItem: Text {
-                        text: parent.text
-                        font: parent.font
+                        text: testButton.text
+                        font: testButton.font
                         color: "white"
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
@@ -456,12 +471,13 @@ Window {
                 
                 // 取消按钮
                 Button {
+                    id: cancelButton
                     text: "取消"
                     font.pixelSize: Theme.fonts.normal
                     font.family: Theme.fonts.family
                     
                     background: Rectangle {
-                        color: parent.pressed ? "#545b62" : parent.hovered ? "#6c757d" : "#6c757d"
+                        color: cancelButton.pressed ? "#545b62" : cancelButton.hovered ? "#6c757d" : "#6c757d"
                         radius: Theme.radius.normal
                         
                         Behavior on color {
@@ -473,8 +489,8 @@ Window {
                     }
                     
                     contentItem: Text {
-                        text: parent.text
-                        font: parent.font
+                        text: cancelButton.text
+                        font: cancelButton.font
                         color: "white"
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
@@ -488,13 +504,14 @@ Window {
                 
                 // 保存按钮
                 Button {
+                    id: saveButton
                     text: "保存"
                     font.pixelSize: Theme.fonts.normal
                     font.family: Theme.fonts.family
                     font.bold: true
                     
                     background: Rectangle {
-                        color: parent.pressed ? "#0056b3" : parent.hovered ? "#007bff" : "#007bff"
+                        color: saveButton.pressed ? "#0056b3" : saveButton.hovered ? "#007bff" : "#007bff"
                         radius: Theme.radius.normal
                         
                         Behavior on color {
@@ -506,8 +523,8 @@ Window {
                     }
                     
                     contentItem: Text {
-                        text: parent.text
-                        font: parent.font
+                        text: saveButton.text
+                        font: saveButton.font
                         color: "white"
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
@@ -531,21 +548,22 @@ Window {
         property bool isSuccess: true
         property alias text: messageText.text
         
-        Label {
-            id: messageText
-            font.pixelSize: Theme.fonts.normal
-            font.family: Theme.fonts.family
-            wrapMode: Text.WordWrap
-            anchors.centerIn: parent
-        }
-        
-        standardButtons: Dialog.Ok
-        
-        background: Rectangle {
+        contentItem: Rectangle {
             color: "#ffffff"
             border.color: messageDialog.isSuccess ? "#28a745" : "#dc3545"
             border.width: 2
             radius: Theme.radius.medium
+            
+            Label {
+                id: messageText
+                font.pixelSize: Theme.fonts.normal
+                font.family: Theme.fonts.family
+                wrapMode: Text.WordWrap
+                anchors.centerIn: parent
+                anchors.margins: 20
+            }
         }
+        
+        standardButtons: Dialog.Ok
     }
 } 

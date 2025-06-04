@@ -39,7 +39,8 @@ def check_dependencies():
 # 导入项目模块
 try:
     from buddy.ui.config import ConfigManager
-    from tools.settings_dialog import SettingsDialog
+    # 不再导入已删除的 SettingsDialog
+    # from tools.settings_dialog import SettingsDialog
     IMPORTS_OK = True
 except ImportError as e:
     print(f"导入错误: {e}")
@@ -327,17 +328,10 @@ class UnifiedVoiceTestWindow(QMainWindow):
     def open_api_settings(self):
         """打开API设置对话框"""
         try:
-            dialog = SettingsDialog(self.config_manager, self)
-            if dialog.exec() == SettingsDialog.Accepted:
-                # 更新API配置
-                if self.traditional_recorder:
-                    api_key = self.config_manager.openai_api_key
-                    api_url = self.config_manager.openai_api_url
-                    self.traditional_recorder.update_api_config(api_key, api_url)
-                
-                # 更新状态显示
-                self.update_api_status_display()
-                self.status_label.setText("API设置已更新")
+            # 使用QML版本的设置对话框
+            QMessageBox.information(self, "设置提示", 
+                                   "请使用 Ctrl+, 快捷键或在主界面中打开设置对话框。\n"
+                                   "Qt Widgets版本的设置对话框已被移除，现在使用QML版本。")
         except Exception as e:
             QMessageBox.critical(self, "错误", f"打开API设置失败: {str(e)}")
     

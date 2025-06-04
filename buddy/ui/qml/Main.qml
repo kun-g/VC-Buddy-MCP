@@ -117,9 +117,6 @@ ApplicationWindow {
                 })
             } else {
                 console.error("Failed to create SettingsDialog:", component.errorString())
-                console.log("Will try to open Qt Widgets settings dialog instead")
-                // 如果QML设置对话框创建失败，可以尝试调用Qt Widgets版本
-                openQtWidgetsSettingsDialog(configManager)
                 return
             }
         }
@@ -129,11 +126,6 @@ ApplicationWindow {
             settingsDialog.loadSettings()
             settingsDialog.show()
         }
-    }
-    
-    function openQtWidgetsSettingsDialog(configManager) {
-        // 暂时作为备用方案，如果需要的话可以通过Python后端调用Qt Widgets版本
-        console.log("Qt Widgets settings dialog is not yet implemented in QML context")
     }
     
     // 主布局
