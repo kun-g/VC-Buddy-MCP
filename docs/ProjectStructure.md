@@ -14,10 +14,10 @@ VC-Buddy-MCP/
 │   ├── cli.py                      # CLI 命令行工具 ⭐ 新增，支持项目环境设置和cursor rules配置
 │   ├── ui/                         # PySide6 GUI
 │   │   ├── answer_box.py          # Answer Box 传统界面 ⭐ 已优化，集成数据统计
-│   │   ├── answer_box_qml.py      # Answer Box QML版本 ⭐ 已升级，支持流式语音输入和QML语音设置，新增Ctrl+,快捷键设置功能，增强埋点统计
+│   │   ├── answer_box_qml.py      # Answer Box QML版本 ⭐ 已升级，支持流式语音输入和QML语音设置，新增Ctrl+,快捷键设置功能，增强埋点统计，优化TODO双击功能支持插入完整任务树
 │   │   ├── style_manager.py       # 样式管理器 ⭐ 新增
 │   │   ├── qml/                   # QML 界面文件 ⭐ 新增
-│   │   │   ├── Main.qml           # 主界面 QML ⭐ 支持流式语音输入显示，新增Ctrl+,快捷键，集成快捷键使用统计
+│   │   │   ├── Main.qml           # 主界面 QML ⭐ 支持流式语音输入显示，新增Ctrl+,快捷键，集成快捷键使用统计，新增可调整高度的summary区域
 │   │   │   ├── TodoItemDelegate.qml # TODO 项目组件 ⭐ 使用主题系统
 │   │   │   ├── VoiceSettingsDialog.qml # QML语音设置对话框 ⭐ 新增，替代Qt Widgets版本
 │   │   │   ├── SettingsDialog.qml # QML主设置对话框 ⭐ 新增，支持OpenAI API配置，支持Ctrl+,快捷键调用，集成配置操作统计
@@ -25,7 +25,7 @@ VC-Buddy-MCP/
 │   │   │   ├── styles.qss         # QSS 样式文件 ⭐ 移动到qml目录
 │   │   │   └── qmldir             # QML 模块配置 ⭐ 已更新
 │   │   ├── config.py              # 配置管理
-│   │   ├── todo_parser.py         # TODO 解析器 ⭐ 已完善，修复代码块解析问题
+│   │   ├── todo_parser.py         # TODO 解析器 ⭐ 已完善，修复代码块解析问题，移除完成状态✅图标显示
 │   │   ├── voice_recorder.py      # 传统语音录制模块 ⭐ 已修复崩溃问题，增强稳定性
 │   │   ├── streaming_voice_recorder.py # 流式语音录制器 ⭐ 已修复崩溃问题，支持实时转写
 │   │   └── voice_settings_dialog.py # 语音设置对话框 ⭐ Qt Widgets版本，仅供工具使用

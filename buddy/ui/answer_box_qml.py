@@ -555,11 +555,15 @@ class AnswerBoxBackend(QObject):
         """插入TODO内容到输入框"""
         todo_item = self._todo_model.getTodoItem(index)
         if todo_item:
-            # 准备要插入的内容
-            if todo_item.content:
-                insert_text = todo_item.content
+            # 如果有子任务，插入完整的任务树（包括总任务）
+            if todo_item.children:
+                insert_text = todo_item.to_markdown()
             else:
-                insert_text = todo_item.title
+                # 没有子任务时，使用原来的逻辑
+                if todo_item.content:
+                    insert_text = todo_item.content
+                else:
+                    insert_text = todo_item.title
             
             # 发送信号插入内容
             self.todoContentInserted.emit(insert_text)

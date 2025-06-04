@@ -57,7 +57,7 @@ Item {
                     anchors.left: parent.left
                     anchors.leftMargin: 8
                     anchors.verticalCenter: parent.verticalCenter
-                    text: todoItem && todoItem.is_done ? "❌ 标记未完成" : "✅ 标记完成"
+                    text: todoItem && todoItem.is_done ? "标记未完成" : "标记完成"
                     font.pixelSize: Theme.fonts.small
                     font.family: Theme.fonts.family
                     color: Theme.colors.text

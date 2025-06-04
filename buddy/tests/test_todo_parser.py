@@ -44,9 +44,9 @@ class TestTodoItem(unittest.TestCase):
         item = TodoItem("普通任务")
         self.assertEqual(item.display_title, "普通任务")
         
-        # 完成的任务
+        # 完成的任务 - 不再添加✅图标
         item_done = TodoItem("完成任务", attributes={"state": "done"})
-        self.assertEqual(item_done.display_title, "✅ 完成任务")
+        self.assertEqual(item_done.display_title, "完成任务")
         
         # 进行中的任务
         item_going = TodoItem("进行中任务", attributes={"state": "going"})
@@ -103,7 +103,7 @@ class TestTodoItem(unittest.TestCase):
         result = item.to_dict()
         
         self.assertEqual(result["title"], "测试任务")
-        self.assertEqual(result["display_title"], "✅ 测试任务")
+        self.assertEqual(result["display_title"], "测试任务")
         self.assertEqual(result["content"], "任务描述")
         self.assertEqual(result["level"], 2)
         self.assertEqual(result["attributes"], attributes)
@@ -155,6 +155,31 @@ class TestTodoItem(unittest.TestCase):
         self.assertEqual(lines[1], "state=going")
         self.assertEqual(lines[2], "")  # 空行分隔
         self.assertEqual(lines[3], "详细描述")
+
+    def test_insert_content_with_children(self):
+        """测试双击有子任务的TODO项目时返回完整任务树"""
+        # 创建一个带子任务的TODO项目
+        parent = TodoItem("主任务", "主任务描述", level=1)
+        child1 = TodoItem("子任务1", "子任务1描述", level=2)
+        child2 = TodoItem("子任务2", level=2, attributes={"state": "done"})
+        
+        parent.add_child(child1)
+        parent.add_child(child2)
+        
+        # 验证有子任务的情况下应该返回完整markdown
+        result = parent.to_markdown()
+        
+        # 检查结果包含主任务和所有子任务
+        self.assertIn("# 主任务", result)
+        self.assertIn("主任务描述", result)
+        self.assertIn("## 子任务1", result)
+        self.assertIn("子任务1描述", result)
+        self.assertIn("## 子任务2", result)
+        self.assertIn("state=done", result)
+        
+        # 验证没有子任务的情况下按原来逻辑处理
+        single_task = TodoItem("单独任务", "单独任务内容")
+        self.assertEqual(len(single_task.children), 0)  # 确认没有子任务
 
 
 class TestTodoParser(unittest.TestCase):
@@ -467,7 +492,7 @@ https://doc.qt.io/qt-6/stylesheet.html
         done_task = todo_display.children[1]
         self.assertEqual(done_task.title, "完成的任务加个✅")
         self.assertTrue(done_task.is_done)
-        self.assertEqual(done_task.display_title, "✅ 完成的任务加个✅")
+        self.assertEqual(done_task.display_title, "完成的任务加个✅")
         
         # 验证QML任务
         qml_task = todos[1].children[1]  # 优化answer_box.py -> 引入QML

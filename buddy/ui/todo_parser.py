@@ -25,9 +25,7 @@ class TodoItem:
     
     @property
     def display_title(self) -> str:
-        """获取显示标题，如果完成则添加✅"""
-        if self.is_done:
-            return f"✅ {self.title}"
+        """获取显示标题"""
         return self.title
     
     def get_attribute(self, key: str, default: str = "") -> str:
