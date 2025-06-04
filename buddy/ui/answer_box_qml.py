@@ -46,12 +46,14 @@ class DeepSeekSummaryWorker(QThread):
             # 导入DeepSeek客户端
             try:
                 from ..core.deepseek_client import DeepSeekClient
+                from ..core.prompt_manager import get_deepseek_prompt
                 from .config import ConfigManager
             except ImportError:
                 import sys
                 from pathlib import Path
                 sys.path.insert(0, str(Path(__file__).parent.parent))
                 from core.deepseek_client import DeepSeekClient
+                from core.prompt_manager import get_deepseek_prompt
                 from ui.config import ConfigManager
             
             # 获取配置
@@ -68,14 +70,8 @@ class DeepSeekSummaryWorker(QThread):
                 base_url=config.deepseek_api_url
             )
             
-            # 系统提示词
-            system_prompt = """你是一个专业的内容总结助手。请对用户提供的内容进行简洁、准确的总结。
-总结要求：
-1. 提取核心要点
-2. 保持逻辑清晰
-3. 语言简洁明了
-4. 突出重要信息
-请用中文回复。"""
+            # 使用提示词管理器获取系统提示词
+            system_prompt = get_deepseek_prompt()
             
             # 调用DeepSeek处理
             response = client.simple_chat(
